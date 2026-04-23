@@ -2,9 +2,13 @@ import json
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException
 from rag import retrieve_schemes
+import os
 
 app = FastAPI(title="SarkariSahayak Router & RAG API")
 
+@app.get("/health")
+async def health():
+    return {"ok": True}
 
 @app.post("/rag/search")
 async def search_endpoint(request: Request):
@@ -70,5 +74,5 @@ async def search_endpoint(request: Request):
 
 
 if __name__ == "__main__":
-    # Runs the server on localhost port 8000
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
