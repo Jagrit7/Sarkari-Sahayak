@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --font-sans: "Inter", "Roboto", "Geist", sans-serif;
+  --font-serif: "Canela", "Playfair Display", "Georgia", serif;
+}
+
+@layer base {
+  :root {
+    --background: #fdfdfd;
+    --foreground: #171717;
+  }
+}
+
+body {
+  background-color: var(--background);
+  background-color: #FAF8F3;
+  color: #1B2A4A;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}

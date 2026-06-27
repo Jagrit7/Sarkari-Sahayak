@@ -1,0 +1,43 @@
+# ───────────── Secrets — NEVER commit ─────────────
+.env
+.env.*
+!.env.example
+
+# ───────────── Python (backend) ─────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+venv/
+.venv/
+env/
+ENV/
+
+# ───────────── Node / Vite (frontend) ─────────────
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+npm-debug.log*
+
+# ───────────── IDE / OS ─────────────
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+*.log
+
+# ───────────── Project-specific ─────────────
+data/ingest_progress.txt     # resumable-ingest state, not source
+*.csv                        # raw datasets — agent reads from Qdrant at runtime, not these
+data/*.jsonl                 # intermediate ingest file
+*.mpeg                       # demo video — host on Drive/YouTube, don't bloat the repo
+*.mp4
+
+# Big dataset JSON (~31 MB) — excluded for a lean repo. The agent queries Qdrant at
+# runtime, so this isn't needed to RUN the project; you'd only need it to re-ingest.
+# Delete this one line if you'd rather ship a complete, re-ingestable repo.
+data/*.json
