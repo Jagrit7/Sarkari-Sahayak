@@ -1,7 +1,7 @@
 
 from pipecat.services.sarvam.tts import SarvamTTSService
 from pipecat.transcriptions.language import Language
-from src.core.config import settings
+from voice.core.config import settings
 
 def configure_tts() -> SarvamTTSService:
     tts = SarvamTTSService(

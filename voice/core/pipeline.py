@@ -5,18 +5,16 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineWorker
 from pipecat.workers.runner import WorkerRunner
 from pipecat.transports.livekit.transport import LiveKitTransport
-from pipecat.processors.logger import FrameLogger
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.processors.audio.vad_processor import VADProcessor
 from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.processors.aggregators.llm_context import LLMContext
-from src.services.tts import configure_tts
-from src.services.stt import configure_stt
-from src.services.llm import configure_llm
-from src.core.language_switcher import LanguageSwitcher
-import sys, pathlib
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[2] / "data"))
-from data.scheme_tool import register_scheme_tool, SCHEME_TOOLS, SYSTEM_PROMPT
+from voice.services.tts import configure_tts
+from voice.services.stt import configure_stt
+from voice.services.llm import configure_llm
+from voice.core.ivr import IVRGate
+from voice.core.prompt import SYSTEM_PROMPT
+from voice.core.tool import register_scheme_tool, SCHEME_TOOLS
 
 
 async def create_pipeline(transport: LiveKitTransport) -> tuple[WorkerRunner, PipelineWorker]:
@@ -30,6 +28,8 @@ async def create_pipeline(transport: LiveKitTransport) -> tuple[WorkerRunner, Pi
     ]
 
     context = LLMContext(messages=initial_messages, tools=SCHEME_TOOLS)
+
+    ivr = IVRGate(context)
 
     context_aggregator = LLMContextAggregatorPair(
         context=context,
@@ -45,13 +45,12 @@ async def create_pipeline(transport: LiveKitTransport) -> tuple[WorkerRunner, Pi
         vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.8))
     )
 
-    language_switcher = LanguageSwitcher()
 
     pipeline = Pipeline([
         transport.input(), # Receives user audio
         vad_processor, # Bytes are chunked into sentences
         stt,
-        language_switcher,  # detects spoken language -> switches TTS language
+        ivr,
         context_aggregator.user(),
         llm, # LLM reads memory, generates reply
         tts, # TTS turns text reply into audio bytes

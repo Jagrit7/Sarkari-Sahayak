@@ -1,5 +1,5 @@
 from pipecat.services.groq.llm import GroqLLMService
-from src.core.config import settings
+from voice.core.config import settings
 
 def configure_llm() -> GroqLLMService:
     groqLLM = GroqLLMService(
