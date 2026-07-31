@@ -17,6 +17,7 @@ speaking naturally in their own language. No smartphone, no internet, no reading
 ![LiveKit](https://img.shields.io/badge/LiveKit-realtime-1FD5F9?style=flat-square)
 ![Groq](https://img.shields.io/badge/Groq-gpt--oss-F55036?style=flat-square)
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20DB-DC244C?style=flat-square)
+![Langchain](https://img.shields.io/badge/LangChain-ffffff?logo=langchain&logoColor=green)
 
 <sub>Built for the Agent&#123;a&#125;thon hackathon · Open Innovation Track · by Team **The Debuggers**</sub>
 
