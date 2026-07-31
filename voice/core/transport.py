@@ -1,6 +1,6 @@
 from pipecat.transports.livekit.transport import LiveKitTransport, LiveKitParams
 from pipecat.runner.livekit import generate_token_with_agent
-from src.core.config import settings
+from voice.core.config import settings
 
 
 async def configure_transport(room_name: str) -> LiveKitTransport:

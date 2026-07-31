@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sarkari Sahayak — Pipecat / LiveKit Voice Agent</title>
+<style>
+  :root{
+    --bg: #0a0c10;
+    --bg-panel: #10131a;
+    --bg-panel-2: #151922;
+    --line: #232936;
+    --line-soft: #1a1f29;
+    --amber: #f5a623;
+    --amber-soft: #f5a62322;
+    --teal: #3ecfc0;
+    --teal-soft: #3ecfc022;
+    --violet: #9b8cff;
+    --violet-soft: #9b8cff22;
+    --text: #e8ebf1;
+    --text-dim: #97a1b3;
+    --text-faint: #5b6474;
+    --mono: "SF Mono", "JetBrains Mono", Consolas, Monaco, "Courier New", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before{
+    content:"";
+    position: fixed; inset:0;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, #f5a62312, transparent 60%),
+      radial-gradient(ellipse 900px 600px at 110% 10%, #3ecfc00f, transparent 60%);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  /* ---------- layout shell ---------- */
+  .shell{ display:flex; max-width: 1400px; margin: 0 auto; position:relative; z-index:1; }
+  nav.toc{
+    width: 250px; flex-shrink:0;
+    position: sticky; top:0; align-self:flex-start;
+    height: 100vh; overflow-y:auto;
+    padding: 36px 18px 36px 28px;
+    border-right: 1px solid var(--line-soft);
+  }
+  nav.toc .brand{
+    font-family: var(--mono); font-size: 12px; letter-spacing:.08em;
+    color: var(--amber); text-transform:uppercase; margin-bottom:22px; opacity:.85;
+  }
+  nav.toc a{
+    display:block; color: var(--text-dim); text-decoration:none;
+    font-size: 13.5px; padding: 7px 0; border-left: 2px solid transparent;
+    padding-left: 12px; margin-left:-13px; transition: all .15s ease;
+  }
+  nav.toc a:hover{ color: var(--text); border-left-color: var(--text-faint); }
+  nav.toc .sub{ font-size:12px; padding-left:24px; margin-left:-13px; color:var(--text-faint); }
+  main{ flex:1; min-width:0; padding: 48px 56px 120px; }
+
+  @media (max-width: 980px){
+    .shell{ flex-direction:column; }
+    nav.toc{ width:100%; height:auto; position:static; border-right:none; border-bottom:1px solid var(--line-soft); padding:20px 24px; }
+    main{ padding: 32px 20px 90px; }
+  }
+
+  /* ---------- hero ---------- */
+  header.hero{ margin-bottom: 64px; }
+  .eyebrow{
+    font-family: var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color: var(--teal); margin-bottom:14px;
+  }
+  h1.title{
+    font-size: clamp(32px, 4.4vw, 52px);
+    margin: 0 0 16px; line-height:1.08; font-weight:700;
+    letter-spacing:-0.02em;
+  }
+  h1.title .hl{ color: var(--amber); }
+  .lede{ color: var(--text-dim); font-size: 17px; max-width: 720px; margin-bottom: 26px; }
+  .pillrow{ display:flex; flex-wrap:wrap; gap:8px; }
+  .pill{
+    font-family: var(--mono); font-size:12px; padding: 6px 12px; border-radius: 999px;
+    border:1px solid var(--line); color: var(--text-dim); background: var(--bg-panel);
+  }
+  .pill b{ color: var(--text); font-weight:600; }
+
+  /* ---------- section chrome ---------- */
+  section{ margin-bottom: 86px; scroll-margin-top: 24px; }
+  .sec-head{ display:flex; align-items:baseline; gap:14px; margin-bottom: 8px; }
+  .sec-num{ font-family: var(--mono); color: var(--text-faint); font-size:14px; }
+  h2{ font-size: 26px; margin: 0; letter-spacing:-.01em; }
+  .sec-desc{ color: var(--text-dim); max-width: 760px; margin: 10px 0 34px; font-size:15px; }
+
+  p{ color: var(--text-dim); }
+  strong{ color: var(--text); font-weight:600; }
+  code, .code{
+    font-family: var(--mono); font-size: 0.87em; background: var(--bg-panel-2);
+    border:1px solid var(--line); padding: 1px 6px; border-radius:5px; color: var(--amber);
+    white-space: nowrap;
+  }
+  a.inline{ color: var(--teal); }
+
+  /* ---------- diagram ---------- */
+  .diagram-wrap{
+    background: var(--bg-panel); border:1px solid var(--line); border-radius:16px;
+    padding: 28px; overflow-x:auto;
+  }
+  .legend{ display:flex; flex-wrap:wrap; gap:18px; margin-top:18px; font-size:12.5px; color:var(--text-dim); font-family:var(--mono); }
+  .legend .dot{ display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:7px; vertical-align:middle; }
+
+  /* ---------- cards ---------- */
+  .card-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(320px,1fr)); gap:16px; }
+  .card{
+    background: var(--bg-panel); border:1px solid var(--line); border-radius: 14px;
+    padding: 22px 24px;
+  }
+  .card .kicker{ font-family: var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; margin-bottom:10px; }
+  .card h3{ margin:0 0 8px; font-size:16px; }
+  .card h3 code{ font-size:0.85em; white-space:normal; }
+  .card p{ margin:0; font-size: 14px; }
+  .card p + p{ margin-top:8px; }
+
+  .cat-runtime .kicker{ color: var(--amber); }
+  .cat-transport .kicker{ color: var(--teal); }
+  .cat-turn .kicker{ color: var(--violet); }
+  .cat-context .kicker{ color: #ff8ba0; }
+  .cat-frames .kicker{ color: #7fd0ff; }
+  .cat-services .kicker{ color: #b7e07a; }
+  .cat-tool .kicker{ color: #ffd166; }
+
+  .group-title{
+    font-family: var(--mono); font-size: 13px; color: var(--text); text-transform:uppercase;
+    letter-spacing:.06em; margin: 40px 0 16px; padding-bottom:10px; border-bottom:1px solid var(--line-soft);
+  }
+  .group-title:first-of-type{ margin-top:0; }
+
+  /* ---------- flow steps ---------- */
+  .flow{ counter-reset: step; }
+  .step{
+    position:relative; padding: 0 0 34px 46px; border-left: 2px solid var(--line);
+    margin-left: 15px;
+  }
+  .step:last-child{ border-left-color: transparent; padding-bottom:0; }
+  .step::before{
+    counter-increment: step; content: counter(step);
+    position:absolute; left:-15px; top:-2px; width:28px; height:28px; border-radius:50%;
+    background: var(--bg-panel); border:1px solid var(--amber); color:var(--amber);
+    font-family: var(--mono); font-size:13px; display:flex; align-items:center; justify-content:center;
+  }
+  .step h4{ margin:0 0 8px; font-size:16px; color:var(--text); }
+  .step p{ font-size: 14.5px; margin:0 0 8px; }
+  .step .file{ font-family: var(--mono); font-size:11.5px; color:var(--text-faint); margin-bottom:6px; }
+
+  pre{
+    background: var(--bg-panel-2); border:1px solid var(--line); border-radius:10px;
+    padding: 14px 16px; overflow-x:auto; font-family: var(--mono); font-size:12.8px;
+    color: #cbd3e0; margin: 10px 0;
+  }
+  pre .c1{ color: var(--text-faint); }
+  pre .c2{ color: var(--teal); }
+  pre .c3{ color: var(--amber); }
+
+  .note{
+    border-left:3px solid var(--violet); background: var(--violet-soft);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; font-size:14px; margin: 18px 0;
+  }
+  .note b{ color:#c9befb; }
+
+  table{ width:100%; border-collapse: collapse; font-size: 14px; margin: 8px 0 20px;}
+  th,td{ text-align:left; padding: 10px 12px; border-bottom:1px solid var(--line-soft); vertical-align:top;}
+  th{ color: var(--text-faint); font-weight:600; font-family:var(--mono); font-size:11.5px; text-transform:uppercase; letter-spacing:.05em;}
+  td code{ white-space:normal; }
+
+  footer{ margin-top: 100px; padding-top:28px; border-top:1px solid var(--line-soft); color:var(--text-faint); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <nav class="toc">
+    <div class="brand">Sarkari&nbsp;Sahayak</div>
+    <a href="#diagram">01 · Architecture Diagram</a>
+    <a href="#pipecat">02 · What Is Pipecat</a>
+    <a href="#imports">03 · Every Import, Explained</a>
+    <a class="sub" href="#imports">— Pipeline runtime</a>
+    <a class="sub" href="#imports">— LiveKit transport</a>
+    <a class="sub" href="#imports">— Turn-taking &amp; VAD</a>
+    <a class="sub" href="#imports">— Context &amp; memory</a>
+    <a class="sub" href="#imports">— Frames &amp; base classes</a>
+    <a class="sub" href="#imports">— Model services</a>
+    <a class="sub" href="#imports">— Tool calling</a>
+    <a href="#howitworks">04 · How The Agent Works</a>
+    <a class="sub" href="#lifecycle">— Call lifecycle</a>
+    <a class="sub" href="#ivr">— IVR language gate</a>
+    <a class="sub" href="#toolflow">— Tool-call round trip</a>
+    <a class="sub" href="#config">— Model config choices</a>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div class="eyebrow">Voice Agent · Internal Architecture Notes</div>
+      <h1 class="title">How <span class="hl">Pipecat</span> &amp; <span class="hl">LiveKit</span><br>power Sarkari Sahayak</h1>
+      <p class="lede">
+        Sarkari Sahayak is a phone-style voice bot that helps Indian callers discover government
+        welfare schemes, in their own language, over a live audio call. This document walks through
+        the exact pipeline built in <code>voice/</code> — every Pipecat import, what it does, and how
+        audio turns into a spoken, multilingual answer.
+      </p>
+      <div class="pillrow">
+        <span class="pill">Framework · <b>pipecat-ai 1.3.0</b></span>
+        <span class="pill">Transport · <b>LiveKit (WebRTC)</b></span>
+        <span class="pill">STT/TTS · <b>Sarvam AI</b></span>
+        <span class="pill">LLM · <b>Groq (gpt-oss-20b)</b></span>
+        <span class="pill">Retrieval · <b>LangChain + Qdrant</b></span>
+      </div>
+    </header>
+
+    <!-- ================= 01 DIAGRAM ================= -->
+    <section id="diagram">
+      <div class="sec-head"><span class="sec-num">01</span><h2>Architecture Diagram</h2></div>
+      <p class="sec-desc">
+        This is the exact processor chain built in <code>core/pipeline.py</code>. Frames flow
+        left→right ("downstream") for audio-in→reply, and the assistant aggregator writes back
+        into the shared context. The tool-call branch is a side trip the LLM takes mid-turn.
+      </p>
+
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 1240 760" xmlns="http://www.w3.org/2000/svg" style="width:100%; min-width:900px; height:auto; font-family: 'SF Mono', Consolas, monospace;">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#8b94a6"/>
+            </marker>
+            <marker id="arrowAmber" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#f5a623"/>
+            </marker>
+            <marker id="arrowViolet" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#9b8cff"/>
+            </marker>
+          </defs>
+
+          <!-- outer livekit room boundary -->
+          <rect x="20" y="20" width="1200" height="220" rx="14" fill="none" stroke="#3ecfc055" stroke-dasharray="5 5"/>
+          <text x="38" y="44" fill="#3ecfc0" font-size="12">LIVEKIT ROOM · "support-room" (WebRTC)</text>
+
+          <!-- caller -->
+          <g>
+            <rect x="40" y="70" width="150" height="70" rx="10" fill="#151922" stroke="#3ecfc0"/>
+            <text x="115" y="100" fill="#e8ebf1" font-size="13" text-anchor="middle">Caller</text>
+            <text x="115" y="118" fill="#97a1b3" font-size="10" text-anchor="middle">mic + speaker</text>
+          </g>
+
+          <!-- transport input -->
+          <g>
+            <rect x="240" y="70" width="190" height="70" rx="10" fill="#151922" stroke="#3ecfc0"/>
+            <text x="335" y="96" fill="#e8ebf1" font-size="12.5" text-anchor="middle">transport.input()</text>
+            <text x="335" y="114" fill="#97a1b3" font-size="10" text-anchor="middle">LiveKitTransport · audio in</text>
+          </g>
+          <line x1="190" y1="105" x2="238" y2="105" stroke="#8b94a6" marker-end="url(#arrow)"/>
+
+          <!-- vad -->
+          <g>
+            <rect x="480" y="70" width="190" height="70" rx="10" fill="#151922" stroke="#9b8cff"/>
+            <text x="575" y="94" fill="#e8ebf1" font-size="12.5" text-anchor="middle">VADProcessor</text>
+            <text x="575" y="112" fill="#97a1b3" font-size="10" text-anchor="middle">SileroVADAnalyzer</text>
+            <text x="575" y="126" fill="#97a1b3" font-size="9.5" text-anchor="middle">stop_secs = 0.8</text>
+          </g>
+          <line x1="430" y1="105" x2="478" y2="105" stroke="#8b94a6" marker-end="url(#arrow)"/>
+
+          <!-- stt -->
+          <g>
+            <rect x="720" y="70" width="190" height="70" rx="10" fill="#151922" stroke="#b7e07a"/>
+            <text x="815" y="94" fill="#e8ebf1" font-size="12.5" text-anchor="middle">SarvamSTTService</text>
+            <text x="815" y="112" fill="#97a1b3" font-size="10" text-anchor="middle">model: saaras:v3</text>
+            <text x="815" y="126" fill="#97a1b3" font-size="9.5" text-anchor="middle">speech → text</text>
+          </g>
+          <line x1="670" y1="105" x2="718" y2="105" stroke="#8b94a6" marker-end="url(#arrow)"/>
+
+          <!-- ivr gate -->
+          <g>
+            <rect x="960" y="70" width="230" height="70" rx="10" fill="#1c1710" stroke="#f5a623"/>
+            <text x="1075" y="94" fill="#e8ebf1" font-size="12.5" text-anchor="middle">IVRGate</text>
+            <text x="1075" y="112" fill="#97a1b3" font-size="10" text-anchor="middle">DTMF language lock</text>
+            <text x="1075" y="126" fill="#97a1b3" font-size="9.5" text-anchor="middle">swallows text until locked</text>
+          </g>
+          <line x1="910" y1="105" x2="958" y2="105" stroke="#8b94a6" marker-end="url(#arrow)"/>
+
+          <!-- down to row 2 -->
+          <line x1="1075" y1="140" x2="1075" y2="185" stroke="#8b94a6" marker-end="url(#arrow)"/>
+          <line x1="1075" y1="185" x2="115" y2="185" stroke="#8b94a6"/>
+          <line x1="115" y1="185" x2="115" y2="270" stroke="#8b94a6" marker-end="url(#arrow)"/>
+          <text x="600" y="178" fill="#5b6474" font-size="10" text-anchor="middle">wraps to row 2 — still inside worker pipeline</text>
+
+          <!-- row 2 -->
+          <rect x="20" y="270" width="1200" height="230" rx="14" fill="none" stroke="#f5a62355" stroke-dasharray="5 5"/>
+          <text x="38" y="294" fill="#f5a623" font-size="12">PIPECAT PIPELINE WORKER · frame chain (continued)</text>
+
+          <!-- context aggregator user -->
+          <g>
+            <rect x="40" y="320" width="220" height="80" rx="10" fill="#151922" stroke="#ff8ba0"/>
+            <text x="150" y="344" fill="#e8ebf1" font-size="12.5" text-anchor="middle">context_aggregator</text>
+            <text x="150" y="360" fill="#e8ebf1" font-size="12.5" text-anchor="middle">.user()</text>
+            <text x="150" y="378" fill="#97a1b3" font-size="9.5" text-anchor="middle">VAD-start / Smart-Turn-stop</text>
+            <text x="150" y="390" fill="#97a1b3" font-size="9.5" text-anchor="middle">appends user turn to LLMContext</text>
+          </g>
+
+          <!-- llm -->
+          <g>
+            <rect x="310" y="320" width="220" height="80" rx="10" fill="#151922" stroke="#b7e07a"/>
+            <text x="420" y="344" fill="#e8ebf1" font-size="12.5" text-anchor="middle">GroqLLMService</text>
+            <text x="420" y="362" fill="#97a1b3" font-size="10" text-anchor="middle">openai/gpt-oss-20b</text>
+            <text x="420" y="378" fill="#97a1b3" font-size="9.5" text-anchor="middle">reasoning_effort: low</text>
+            <text x="420" y="390" fill="#97a1b3" font-size="9.5" text-anchor="middle">max_completion_tokens: 512</text>
+          </g>
+          <line x1="260" y1="360" x2="308" y2="360" stroke="#8b94a6" marker-end="url(#arrow)"/>
+
+          <!-- tts -->
+          <g>
+            <rect x="580" y="320" width="220" height="80" rx="10" fill="#151922" stroke="#b7e07a"/>
+            <text x="690" y="344" fill="#e8ebf1" font-size="12.5" text-anchor="middle">SarvamTTSService</text>
+            <text x="690" y="362" fill="#97a1b3" font-size="10" text-anchor="middle">model: bulbul:v3-beta</text>
+            <text x="690" y="378" fill="#97a1b3" font-size="9.5" text-anchor="middle">voice: aditya · pace 1.1</text>
+            <text x="690" y="390" fill="#97a1b3" font-size="9.5" text-anchor="middle">text → speech</text>
+          </g>
+          <line x1="530" y1="360" x2="578" y2="360" stroke="#8b94a6" marker-end="url(#arrow)"/>
+
+          <!-- transport output -->
+          <g>
+            <rect x="850" y="320" width="200" height="80" rx="10" fill="#151922" stroke="#3ecfc0"/>
+            <text x="950" y="350" fill="#e8ebf1" font-size="12.5" text-anchor="middle">transport.output()</text>
+            <text x="950" y="368" fill="#97a1b3" font-size="10" text-anchor="middle">LiveKitTransport</text>
+            <text x="950" y="384" fill="#97a1b3" font-size="9.5" text-anchor="middle">audio out → caller</text>
+          </g>
+          <line x1="800" y1="360" x2="848" y2="360" stroke="#8b94a6" marker-end="url(#arrow)"/>
+          <line x1="1050" y1="360" x2="1090" y2="360" stroke="#8b94a6" marker-end="url(#arrow)"/>
+
+          <!-- back to caller -->
+          <path d="M 1075 320 C 1075 250, 115 250, 115 140" fill="none" stroke="#3ecfc0" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+          <text x="600" y="255" fill="#3ecfc0" font-size="10" text-anchor="middle">reply audio streamed back into the room to the caller</text>
+
+          <!-- assistant aggregator -->
+          <g>
+            <rect x="1090" y="320" width="130" height="80" rx="10" fill="#1c1015" stroke="#ff8ba0"/>
+            <text x="1155" y="348" fill="#e8ebf1" font-size="11.5" text-anchor="middle">context_</text>
+            <text x="1155" y="362" fill="#e8ebf1" font-size="11.5" text-anchor="middle">aggregator</text>
+            <text x="1155" y="376" fill="#e8ebf1" font-size="11.5" text-anchor="middle">.assistant()</text>
+          </g>
+
+          <!-- shared context box -->
+          <rect x="330" y="450" width="560" height="40" rx="10" fill="#151922" stroke="#ff8ba0" stroke-dasharray="3 3"/>
+          <text x="610" y="475" fill="#ff8ba0" font-size="11.5" text-anchor="middle">shared LLMContext — messages[] + tools[] (SCHEME_TOOLS)</text>
+          <line x1="150" y1="400" x2="150" y2="470" stroke="#ff8ba055"/>
+          <line x1="150" y1="470" x2="330" y2="470" stroke="#ff8ba055" marker-end="url(#arrowViolet)"/>
+          <line x1="1155" y1="400" x2="1155" y2="470" stroke="#ff8ba055"/>
+          <line x1="1155" y1="470" x2="890" y2="470" stroke="#ff8ba055" marker-end="url(#arrowViolet)"/>
+          <line x1="1075" y1="140" x2="1075" y2="300" stroke="#f5a62355" stroke-dasharray="3 3"/>
+          <text x="1075" y="315" fill="#f5a623" font-size="9.5" text-anchor="middle" style="display:none"></text>
+
+          <!-- tool call branch -->
+          <rect x="330" y="560" width="560" height="150" rx="14" fill="#171310" stroke="#ffd166"/>
+          <text x="350" y="585" fill="#ffd166" font-size="12">TOOL-CALL SIDE TRIP (mid-turn, triggered by the LLM)</text>
+
+          <g>
+            <rect x="350" y="610" width="220" height="70" rx="10" fill="#151922" stroke="#ffd166"/>
+            <text x="460" y="634" fill="#e8ebf1" font-size="12" text-anchor="middle">search_schemes</text>
+            <text x="460" y="650" fill="#97a1b3" font-size="9.5" text-anchor="middle">FunctionSchema / FunctionCallParams</text>
+            <text x="460" y="664" fill="#97a1b3" font-size="9.5" text-anchor="middle">core/tool.py</text>
+          </g>
+          <g>
+            <rect x="650" y="610" width="220" height="70" rx="10" fill="#151922" stroke="#ffd166"/>
+            <text x="760" y="634" fill="#e8ebf1" font-size="12" text-anchor="middle">retrieval / retriever.py</text>
+            <text x="760" y="650" fill="#97a1b3" font-size="9.5" text-anchor="middle">Qdrant + Cloudflare embeddings</text>
+            <text x="760" y="664" fill="#97a1b3" font-size="9.5" text-anchor="middle">asyncio.to_thread (non-blocking)</text>
+          </g>
+          <line x1="570" y1="645" x2="648" y2="645" stroke="#ffd166" marker-end="url(#arrowAmber)"/>
+          <path d="M 460 610 C 460 550, 420 480, 420 400" fill="none" stroke="#ffd166" stroke-dasharray="4 3" marker-end="url(#arrowAmber)"/>
+          <path d="M 640 610 C 640 500, 500 460, 420 410" fill="none" stroke="#ffd166" stroke-dasharray="4 3"/>
+          <text x="270" y="560" fill="#ffd166" font-size="9.5" text-anchor="middle">LLM calls tool,</text>
+          <text x="270" y="573" fill="#ffd166" font-size="9.5" text-anchor="middle">result fed back in,</text>
+          <text x="270" y="586" fill="#ffd166" font-size="9.5" text-anchor="middle">LLM re-runs (run_llm=True)</text>
+        </svg>
+
+        <div class="legend">
+          <span><span class="dot" style="background:#3ecfc0"></span>LiveKit transport</span>
+          <span><span class="dot" style="background:#9b8cff"></span>Turn-taking / VAD</span>
+          <span><span class="dot" style="background:#b7e07a"></span>Model services (STT/LLM/TTS)</span>
+          <span><span class="dot" style="background:#f5a623"></span>Custom processor (IVR gate)</span>
+          <span><span class="dot" style="background:#ff8ba0"></span>Context / memory</span>
+          <span><span class="dot" style="background:#ffd166"></span>Tool call + retrieval</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 02 WHAT IS PIPECAT ================= -->
+    <section id="pipecat">
+      <div class="sec-head"><span class="sec-num">02</span><h2>What Is Pipecat</h2></div>
+      <p>
+        <a class="inline" href="https://github.com/pipecat-ai/pipecat" target="_blank">Pipecat</a>
+        is an open-source Python framework for building real-time, low-latency <strong>voice and
+        multimodal AI agents</strong> — the kind of thing you need when a human is talking to a bot
+        live over audio (or video), rather than typing into a chat box. It's built by the team behind
+        Daily.co and is transport-agnostic: it can run over WebRTC (LiveKit, Daily, WebSocket) or
+        plain telephony.
+      </p>
+      <p>
+        The core idea is a <strong>pipeline of frame processors</strong>. Every unit of data —
+        a chunk of audio, a transcribed sentence, an LLM token, a DTMF keypress, a "start
+        speaking now" signal — is wrapped in a <code>Frame</code> object and pushed through an
+        ordered list of <code>FrameProcessor</code>s, exactly the way audio moves through a
+        mixing desk: each stage can read a frame, transform it, drop it, or pass it straight
+        through, before handing it to the next stage.
+      </p>
+      <p>
+        Frames travel in two directions: <strong>downstream</strong> (the normal direction —
+        mic audio in, spoken reply out) and <strong>upstream</strong> (control signals that need
+        to go back toward the input side, like telling the STT service to switch languages).
+        This bidirectional design is what lets a processor sitting in the middle of the chain,
+        like our <code>IVRGate</code>, reconfigure services on either side of it.
+      </p>
+      <p>
+        Pipecat deliberately keeps the <strong>services layer pluggable</strong>: STT, LLM, and
+        TTS are each just an interface, so swapping Sarvam for Deepgram, or Groq for OpenAI, is a
+        one-line change in <code>services/*.py</code> with no change to the pipeline shape. On
+        top of the raw pipeline it also ships turn-taking primitives (VAD, "Smart Turn" end-of-speech
+        detection), conversation-context aggregation, and function/tool calling — all of which this
+        project uses directly.
+      </p>
+      <div class="note">
+        <b>Why this matters for voice specifically:</b> in a text chatbot you can wait for the whole
+        message. In a phone call, audio is continuous and the bot must decide, in real time, when the
+        caller has actually finished a turn, when to start talking over silence, and how to keep
+        latency low enough that the conversation doesn't feel like a satellite phone call. Pipecat's
+        frame pipeline plus VAD/turn-strategy layer exists specifically to solve that problem.
+      </div>
+    </section>
+
+    <!-- ================= 03 IMPORTS ================= -->
+    <section id="imports">
+      <div class="sec-head"><span class="sec-num">03</span><h2>Every Pipecat Import, Explained</h2></div>
+      <p class="sec-desc">
+        Grouped by what each import is responsible for, in the order they appear across
+        <code>core/pipeline.py</code>, <code>core/transport.py</code>, <code>core/ivr.py</code>,
+        <code>core/languages.py</code>, <code>core/tool.py</code>, and <code>services/*.py</code>.
+      </p>
+
+      <div class="group-title">Pipeline runtime</div>
+      <div class="card-grid">
+        <div class="card cat-runtime">
+          <div class="kicker">pipecat.pipeline.pipeline</div>
+          <h3><code>Pipeline</code></h3>
+          <p>The container class that takes an ordered Python list of processors/services and wires
+          each one's output into the next one's input. This is literally the list built at the bottom
+          of <code>create_pipeline()</code> — <code>transport.input()</code> through
+          <code>context_aggregator.assistant()</code>.</p>
+        </div>
+        <div class="card cat-runtime">
+          <div class="kicker">pipecat.pipeline.worker</div>
+          <h3><code>PipelineWorker</code></h3>
+          <p>Wraps a built <code>Pipeline</code> so it can be scheduled and supervised like a job/worker
+          rather than a bare object — handles its own start/stop lifecycle and error boundaries
+          independent of the rest of the process.</p>
+        </div>
+        <div class="card cat-runtime">
+          <div class="kicker">pipecat.workers.runner</div>
+          <h3><code>WorkerRunner</code></h3>
+          <p>The top-level event loop driver. <code>runner.add_workers(worker)</code> registers the
+          pipeline worker onto a shared task/message bus, and <code>runner.run()</code> blocks the
+          process, actually pumping frames until the call ends — this is what <code>main.py</code>
+          awaits to "keep the bot alive."</p>
+        </div>
+      </div>
+
+      <div class="group-title">LiveKit transport</div>
+      <div class="card-grid">
+        <div class="card cat-transport">
+          <div class="kicker">pipecat.transports.livekit.transport</div>
+          <h3><code>LiveKitTransport</code>, <code>LiveKitParams</code></h3>
+          <p>The bridge between Pipecat and a LiveKit room. <code>LiveKitParams(audio_in_enabled=True,
+          audio_out_enabled=True)</code> turns on mic capture and speaker playback. The transport
+          object exposes <code>.input()</code> and <code>.output()</code> as pipeline processors —
+          they're the very first and near-last steps in the chain, converting between LiveKit's
+          WebRTC audio tracks and Pipecat's internal audio frames.</p>
+        </div>
+        <div class="card cat-transport">
+          <div class="kicker">pipecat.runner.livekit</div>
+          <h3><code>generate_token_with_agent</code></h3>
+          <p>Builds the signed LiveKit access token the <em>bot itself</em> uses to join the room as a
+          participant named <code>"scheme-setu-bot"</code> — separate from the caller's own token,
+          which is minted by <code>voice_server.py</code>'s <code>/token</code> endpoint or
+          <code>generate_token.py</code> for manual testing.</p>
+        </div>
+      </div>
+
+      <div class="group-title">Turn-taking &amp; VAD (deciding when the caller is "done talking")</div>
+      <div class="card-grid">
+        <div class="card cat-turn">
+          <div class="kicker">pipecat.audio.vad.silero</div>
+          <h3><code>SileroVADAnalyzer</code></h3>
+          <p>Wraps the Silero voice-activity-detection model — a small neural net that classifies
+          short audio windows as speech vs. silence. This is the raw signal everything else
+          (turn start, turn stop, barge-in) is built on top of.</p>
+        </div>
+        <div class="card cat-turn">
+          <div class="kicker">pipecat.audio.vad.vad_analyzer</div>
+          <h3><code>VADParams</code></h3>
+          <p>Tuning knobs for the analyzer. Here only <code>stop_secs=0.8</code> is set — the caller
+          must go quiet for 0.8 seconds before Silero reports "speech ended," which avoids cutting
+          people off mid-sentence during natural pauses.</p>
+        </div>
+        <div class="card cat-turn">
+          <div class="kicker">pipecat.processors.audio.vad_processor</div>
+          <h3><code>VADProcessor</code></h3>
+          <p>The pipeline-facing wrapper around the analyzer. It sits right after
+          <code>transport.input()</code>, watches the raw audio frames flowing past, and emits
+          speech-started / speech-stopped events into the pipeline for downstream processors
+          (like the context aggregator) to react to.</p>
+        </div>
+        <div class="card cat-turn">
+          <div class="kicker">pipecat.turns.user_start</div>
+          <h3><code>VADUserTurnStartStrategy</code></h3>
+          <p>One of possibly several strategies for deciding <em>when a user's turn begins</em>.
+          Configured here as the <em>only</em> start trigger, meaning a turn only starts when VAD
+          detects the mic picking up speech — not, say, on some other heuristic.</p>
+        </div>
+        <div class="card cat-turn">
+          <div class="kicker">pipecat.turns.user_turn_strategies</div>
+          <h3><code>UserTurnStrategies</code>, <code>default_user_turn_stop_strategies</code></h3>
+          <p><code>UserTurnStrategies</code> bundles the start + stop rules together. The stop side
+          uses Pipecat's built-in defaults, which combine VAD silence with a "Smart Turn" model that
+          also considers sentence-completion cues (not just silence) — so a caller pausing to think
+          mid-sentence is less likely to trigger a premature reply.</p>
+        </div>
+      </div>
+
+      <div class="group-title">Context &amp; memory</div>
+      <div class="card-grid">
+        <div class="card cat-context">
+          <div class="kicker">pipecat.processors.aggregators.llm_context</div>
+          <h3><code>LLMContext</code></h3>
+          <p>The actual conversation memory object: a running <code>messages</code> list plus the
+          <code>tools</code> schema the LLM is allowed to call. One instance is created in
+          <code>create_pipeline()</code> and shared by reference across the IVR gate and both
+          aggregators — so "baking in" the language directive once (in <code>ivr.py</code>) is
+          visible everywhere for the rest of the call.</p>
+        </div>
+        <div class="card cat-context">
+          <div class="kicker">pipecat.processors.aggregators.llm_response_universal</div>
+          <h3><code>LLMContextAggregatorPair</code>, <code>LLMUserAggregatorParams</code></h3>
+          <p>Produces two complementary processors from one shared context: <code>.user()</code>,
+          placed <em>before</em> the LLM, which buffers/finalizes the caller's transcribed speech
+          into a proper "user" message using the turn strategies above; and <code>.assistant()</code>,
+          placed <em>after</em> TTS/transport-output, which writes the LLM's reply back into the same
+          context as an "assistant" message so the next turn has full history.</p>
+        </div>
+      </div>
+
+      <div class="group-title">Frames &amp; base processor classes</div>
+      <div class="card-grid">
+        <div class="card cat-frames">
+          <div class="kicker">pipecat.processors.frame_processor</div>
+          <h3><code>FrameProcessor</code>, <code>FrameDirection</code></h3>
+          <p>The base class every custom pipeline stage extends — <code>IVRGate</code> is one.
+          Subclassing it means overriding <code>process_frame(frame, direction)</code> and calling
+          <code>self.push_frame(...)</code> to forward (or withhold) frames.
+          <code>FrameDirection</code> is the DOWNSTREAM / UPSTREAM enum used to pick which way a
+          frame travels next.</p>
+        </div>
+        <div class="card cat-frames">
+          <div class="kicker">pipecat.frames.frames</div>
+          <h3><code>StartFrame</code>, <code>InputDTMFFrame</code>, <code>TTSSpeakFrame</code>,
+          <code>TTSUpdateSettingsFrame</code>, <code>STTUpdateSettingsFrame</code>,
+          <code>TranscriptionFrame</code>, <code>InterimTranscriptionFrame</code></h3>
+          <p>The concrete frame types the IVR gate cares about: <code>StartFrame</code> fires once
+          when the pipeline boots (used to trigger the spoken menu); <code>InputDTMFFrame</code>
+          carries a caller's phone keypress; <code>TTSSpeakFrame</code> forces a specific line to be
+          spoken immediately; <code>TTSUpdateSettingsFrame</code> / <code>STTUpdateSettingsFrame</code>
+          hot-swap the TTS/STT language mid-call; <code>TranscriptionFrame</code> /
+          <code>InterimTranscriptionFrame</code> are final and partial speech-to-text results.</p>
+        </div>
+        <div class="card cat-frames">
+          <div class="kicker">pipecat.frames.frames</div>
+          <h3><code>FunctionCallResultProperties</code></h3>
+          <p>Metadata attached to a tool result telling Pipecat what to do next — here,
+          <code>run_llm=True</code> tells it to immediately re-invoke the LLM with the tool's
+          output appended, so the model can speak the answer without waiting for a new user turn.</p>
+        </div>
+      </div>
+
+      <div class="group-title">Model services (STT / LLM / TTS)</div>
+      <div class="card-grid">
+        <div class="card cat-services">
+          <div class="kicker">pipecat.services.sarvam.stt</div>
+          <h3><code>SarvamSTTService</code></h3>
+          <p>Speech-to-text via Sarvam AI's <code>saaras:v3</code> model, tuned for Indian languages
+          and auto language detection. Configured in <code>services/stt.py</code>, re-tuned live by
+          the IVR gate once a language digit is pressed.</p>
+        </div>
+        <div class="card cat-services">
+          <div class="kicker">pipecat.services.sarvam.tts</div>
+          <h3><code>SarvamTTSService</code></h3>
+          <p>Text-to-speech via Sarvam's <code>bulbul:v3-beta</code> model — voice <code>"aditya"</code>,
+          default language Hindi, <code>pace=1.1</code> for a slightly brisker conversational cadence.
+          Same service class is also driven directly by the IVR gate to speak each menu line in its
+          own language.</p>
+        </div>
+        <div class="card cat-services">
+          <div class="kicker">pipecat.services.groq.llm</div>
+          <h3><code>GroqLLMService</code></h3>
+          <p>The reasoning/response engine, running Groq's hosted <code>openai/gpt-oss-20b</code>.
+          Capped to <code>max_completion_tokens=512</code> and
+          <code>reasoning_effort: low</code> specifically to keep per-turn latency low on a live
+          call — a 512-token ceiling and minimal internal "thinking" trades a bit of depth for
+          the seconds that matter on a phone.</p>
+        </div>
+      </div>
+
+      <div class="group-title">Tool calling (LLM → retrieval bridge)</div>
+      <div class="card-grid">
+        <div class="card cat-tool">
+          <div class="kicker">pipecat.adapters.schemas.function_schema / tools_schema</div>
+          <h3><code>FunctionSchema</code>, <code>ToolsSchema</code></h3>
+          <p>Declare the <code>search_schemes</code> function (name, description, JSON-schema
+          parameters <code>query</code> / <code>state</code> / <code>government_level</code>) in a
+          shape the LLM's function-calling API understands, then bundle it into a
+          <code>ToolsSchema</code> that's attached straight onto the shared <code>LLMContext</code>.</p>
+        </div>
+        <div class="card cat-tool">
+          <div class="kicker">pipecat.services.llm_service</div>
+          <h3><code>FunctionCallParams</code></h3>
+          <p>What the LLM service hands to your registered handler when the model decides to call
+          the tool — the parsed arguments plus a <code>result_callback</code> used to hand the
+          answer back into the running conversation.</p>
+        </div>
+        <div class="card cat-tool">
+          <div class="kicker">llm.register_function(...)</div>
+          <h3><code>register_scheme_tool(llm)</code></h3>
+          <p>Not a Pipecat import itself, but the wiring call in <code>core/tool.py</code> that binds
+          the <code>search_schemes</code> name to the <code>_handle_search</code> coroutine on the
+          <code>GroqLLMService</code> instance, so the framework knows what code to run for that
+          tool name.</p>
+        </div>
+      </div>
+
+      <div class="group-title">Supporting enums (used to drive the IVR gate)</div>
+      <div class="card-grid">
+        <div class="card cat-context">
+          <div class="kicker">pipecat.audio.dtmf.types</div>
+          <h3><code>KeypadEntry</code></h3>
+          <p>Enum for phone keypad digits (<code>ONE</code>, <code>TWO</code>, <code>THREE</code>…).
+          <code>languages.py</code> keys its language map off this enum so a raw DTMF frame can be
+          looked up directly.</p>
+        </div>
+        <div class="card cat-context">
+          <div class="kicker">pipecat.transcriptions.language</div>
+          <h3><code>Language</code></h3>
+          <p>Enum of language codes (<code>Language.HI</code>, <code>EN</code>, <code>TA</code>) used
+          both as the TTS default and as the value baked into
+          <code>TTSUpdateSettingsFrame</code>/<code>STTUpdateSettingsFrame</code> when the IVR gate
+          locks a language.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 04 HOW IT WORKS ================= -->
+    <section id="howitworks">
+      <div class="sec-head"><span class="sec-num">04</span><h2>How The Voice Agent Actually Works</h2></div>
+      <p class="sec-desc">
+        End-to-end walkthrough of one phone call, tracing exactly what the code does, in order.
+      </p>
+
+      <div id="lifecycle" class="group-title">Call lifecycle — boot to first word</div>
+      <div class="flow">
+        <div class="step">
+          <div class="file">voice_server.py / main.py</div>
+          <h4>A room is created, and two tokens exist</h4>
+          <p>The caller's browser/app hits <code>GET /token</code> to get a LiveKit access token for
+          room <code>"support-room"</code>. Separately, the bot process calls
+          <code>configure_transport(room_name)</code>, which mints its own token via
+          <code>generate_token_with_agent(...)</code> under the identity
+          <code>"scheme-setu-bot"</code> — the caller and the bot are two independent participants
+          in the same LiveKit room.</p>
+        </div>
+        <div class="step">
+          <div class="file">core/transport.py</div>
+          <h4>The transport is configured</h4>
+          <p><code>LiveKitParams(audio_in_enabled=True, audio_out_enabled=True)</code> turns on both
+          directions of audio, and a <code>LiveKitTransport</code> is constructed with the room URL,
+          the bot's token, and those params — this object is what <code>create_pipeline()</code>
+          will later plug in as the very first and near-last pipeline stage.</p>
+        </div>
+        <div class="step">
+          <div class="file">core/pipeline.py</div>
+          <h4><code>create_pipeline()</code> assembles every stage once</h4>
+          <p>STT, TTS and LLM services are configured; the scheme-search tool is registered on the
+          LLM; a single <code>LLMContext</code> is created with the system prompt and tool schema;
+          the <code>IVRGate</code> is built around that same context object; the
+          <code>LLMContextAggregatorPair</code> is built with VAD-start / Smart-Turn-stop turn
+          strategies; and a <code>VADProcessor</code> wraps Silero with an 0.8s stop threshold.
+          All nine stages are then handed to <code>Pipeline([...])</code> in the exact order shown
+          in the diagram above.</p>
+        </div>
+        <div class="step">
+          <div class="file">core/pipeline.py → main.py</div>
+          <h4>The pipeline is handed to the runner</h4>
+          <p>The <code>Pipeline</code> is wrapped in a <code>PipelineWorker</code>, registered onto a
+          <code>WorkerRunner</code> via <code>add_workers</code>, and <code>runner.run()</code> is
+          awaited — this is the call that actually keeps the process alive and pumping frames for
+          the whole duration of the call.</p>
+        </div>
+        <div class="step">
+          <div class="file">core/ivr.py</div>
+          <h4>The very first frame triggers the language menu</h4>
+          <p>The instant the pipeline starts, a <code>StartFrame</code> reaches <code>IVRGate</code>
+          before anything else does. It responds by pushing a <code>TTSSpeakFrame</code> for each
+          language in <code>languages.py</code>, in that language's own voice — "हिंदी के लिए एक
+          दबाएं," then "For English, press two," then the Tamil line — and starts a 6-second
+          timeout watch.</p>
+        </div>
+      </div>
+
+      <div id="ivr" class="group-title">The IVR language gate, in detail</div>
+      <p>
+        <code>IVRGate</code> is the one fully custom <code>FrameProcessor</code> in this system, and
+        it sits deliberately between STT and the context aggregator so it can intercept transcribed
+        speech before it ever reaches the LLM. Its job is a one-time language lock, then it gets out
+        of the way for the rest of the call:
+      </p>
+      <ul style="color:var(--text-dim); font-size:14.5px;">
+        <li style="margin-bottom:8px;"><strong>Before a language is chosen:</strong> any
+        <code>TranscriptionFrame</code> or <code>InterimTranscriptionFrame</code> is silently
+        dropped — a caller talking over the menu can't accidentally start a conversation with the
+        LLM before picking a language. <code>InputDTMFFrame</code> keypresses are handled and
+        consumed (never forwarded raw).</li>
+        <li style="margin-bottom:8px;"><strong>On a valid digit:</strong> <code>_lock()</code> runs
+        once. It (1) appends a language directive (e.g. <em>"Reply only in Hindi, in Devanagari
+        script"</em>) straight onto the shared <code>LLMContext.messages</code> — a single system
+        message, not a per-turn injection, so the LLM never has to re-detect language; (2) pushes a
+        <code>TTSUpdateSettingsFrame</code> <em>downstream</em> to retune Sarvam TTS, since TTS sits
+        after this gate in the chain; and (3) pushes an <code>STTUpdateSettingsFrame</code>
+        <em>upstream</em> to retune Sarvam STT, since STT sits before this gate — this is the
+        clearest example in the codebase of why Pipecat frames need a direction at all.</li>
+        <li style="margin-bottom:8px;"><strong>On an invalid digit or silence:</strong> a retry
+        counter increments, the menu replays, and the timeout restarts — up to
+        <code>IVR_MAX_RETRIES</code> (2) times, after which it force-locks to
+        <code>DEFAULT_DIGIT</code> (Hindi) rather than stalling the call forever.</li>
+        <li><strong>Once locked:</strong> <code>self._locked</code> flips true and every frame is
+        simply passed straight through — the gate becomes a no-op for the remainder of the call.</li>
+      </ul>
+      <p>Because <code>languages.py</code> is the single source of truth (digit → name → TTS language
+      → menu line → system directive), adding a fourth language means adding one dict entry — nothing
+      else in <code>ivr.py</code>, <code>pipeline.py</code>, or the prompt needs to change.</p>
+
+      <div id="toolflow" class="group-title">The tool-call round trip</div>
+      <div class="flow">
+        <div class="step">
+          <div class="file">core/prompt.py + core/tool.py</div>
+          <h4>The system prompt forces tool-first answers</h4>
+          <p><code>SYSTEM_PROMPT</code> instructs the model to call <code>search_schemes</code> for
+          <em>any</em> question about schemes and never to invent one — this is enforced entirely
+          through prompt instructions, since a Groq function-calling model decides for itself when
+          to invoke a registered tool.</p>
+        </div>
+        <div class="step">
+          <div class="file">core/tool.py → services/llm.py</div>
+          <h4>The LLM emits a function call, Pipecat routes it</h4>
+          <p>When the model decides to call <code>search_schemes</code>, <code>GroqLLMService</code>
+          matches the name against what <code>register_scheme_tool(llm)</code> registered, and
+          invokes <code>_handle_search(params: FunctionCallParams)</code> with the parsed
+          <code>query</code>, <code>state</code>, and <code>government_level</code> arguments.</p>
+        </div>
+        <div class="step">
+          <div class="file">core/tool.py → retrieval/retriever.py</div>
+          <h4>The actual search runs off the event loop</h4>
+          <p><code>search_schemes(...)</code> does blocking network I/O against Cloudflare (for
+          embeddings) and Qdrant (vector search), so it's dispatched via
+          <code>asyncio.to_thread(...)</code> — keeping the audio pipeline's event loop free so the
+          call doesn't stutter while the lookup runs. Results are trimmed hard (each field capped to
+          200–300 characters, top <code>MAX_RESULTS = 2</code>) because everything the tool returns
+          gets spoken aloud, not displayed.</p>
+        </div>
+        <div class="step">
+          <div class="file">core/tool.py</div>
+          <h4>The result is handed back with <code>run_llm=True</code></h4>
+          <p><code>params.result_callback(result, properties=FunctionCallResultProperties(run_llm=True))</code>
+          both appends the tool's output to the shared context and tells Pipecat to immediately
+          re-run the LLM on the updated context — so the model turns the raw scheme data into a
+          short, spoken sentence without waiting for the caller to speak again.</p>
+        </div>
+        <div class="step">
+          <div class="file">core/prompt.py</div>
+          <h4>The reply is deliberately short</h4>
+          <p>The prompt caps the first reply to one or two schemes and a single line each, then asks
+          the caller what they want next — every later turn reveals just one further detail
+          (benefit, eligibility, documents, or how to apply), matching how a real phone conversation
+          is actually paced.</p>
+        </div>
+      </div>
+
+      <div id="config" class="group-title">Model configuration choices, and why</div>
+      <table>
+        <tr><th>Setting</th><th>Value</th><th>Why</th></tr>
+        <tr><td><code>GroqLLMService.model</code></td><td>openai/gpt-oss-20b</td>
+          <td>Smaller/faster than the 120b variant — chosen for real-time voice, not accuracy ceiling.</td></tr>
+        <tr><td><code>reasoning_effort</code></td><td>low</td>
+          <td>Minimizes internal "thinking" time so a reply lands in seconds, not tens of seconds.</td></tr>
+        <tr><td><code>max_completion_tokens</code></td><td>512</td>
+          <td>Hard ceiling so neither reasoning nor the answer can run long and stall the call.</td></tr>
+        <tr><td><code>VADParams.stop_secs</code></td><td>0.8s</td>
+          <td>How long the caller must be silent before their turn is considered finished.</td></tr>
+        <tr><td>IVR timeout / retries</td><td>6.0s / 2</td>
+          <td>Re-prompts twice before defaulting the call to Hindi, so a confused caller isn't stuck forever.</td></tr>
+        <tr><td><code>SarvamTTSService.pace</code></td><td>1.1</td>
+          <td>Slightly faster than natural speech, for a snappier conversational feel.</td></tr>
+        <tr><td><code>MAX_RESULTS</code> (tool)</td><td>2</td>
+          <td>Keeps tool output short enough to be spoken naturally in one reply, not read like a list.</td></tr>
+      </table>
+    </section>
+
+    <footer>
+      Generated from the contents of <code>voice.zip</code> — covers only the Pipecat/LiveKit voice
+      pipeline (<code>core/</code>, <code>services/</code>, transport/entrypoints). The LangChain
+      retrieval stack (<code>retrieval/</code>) is referenced only where it's called from the tool.
+    </footer>
+  </main>
+</div>
+</body>
+</html>
