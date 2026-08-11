@@ -1,0 +1,250 @@
+{
+  "per_query_results": [
+    {
+      "query_id": "q001",
+      "query": "is there any scholarship for a single girl child in school",
+      "retrieved_ids": [
+        "edssgc",
+        "pg-igssgc",
+        "msssgc"
+      ],
+      "expected_ids": [
+        "msssgc",
+        "edssgc",
+        "pg-igssgc"
+      ],
+      "precision@k": 1.0,
+      "recall@k": 1.0,
+      "mrr": 1.0,
+      "ndcg@k": 1.0,
+      "latency": {
+        "embed_and_search_ms": 957.7740999993694,
+        "rerank_ms": 1106.985899998108,
+        "total_ms": 2064.7599999974773
+      }
+    },
+    {
+      "query_id": "q002",
+      "query": "additional pension for widow of an ex-serviceman",
+      "retrieved_ids": [
+        "apwesmnc",
+        "apwesmc",
+        "faesmw"
+      ],
+      "expected_ids": [
+        "apwesmc",
+        "apwesmnc"
+      ],
+      "precision@k": 0.6666666666666666,
+      "recall@k": 1.0,
+      "mrr": 1.0,
+      "ndcg@k": 1.0,
+      "latency": {
+        "embed_and_search_ms": 584.0662000009615,
+        "rerank_ms": 1201.946900000621,
+        "total_ms": 1786.0131000015826
+      }
+    },
+    {
+      "query_id": "q003",
+      "query": "financial help for fishermen during fishing ban or bad weather season",
+      "retrieved_ids": [
+        "wrflsncs-fbps",
+        "wrflsncs-lsa",
+        "ira-wrflsncs"
+      ],
+      "expected_ids": [
+        "ira-wrflsncs",
+        "wrflsncs-fbps",
+        "wrflsncs-idra"
+      ],
+      "precision@k": 0.6666666666666666,
+      "recall@k": 0.6666666666666666,
+      "mrr": 1.0,
+      "ndcg@k": 0.7039180890341347,
+      "latency": {
+        "embed_and_search_ms": 444.53860000066925,
+        "rerank_ms": 1109.6295999996073,
+        "total_ms": 1554.1682000002766
+      }
+    },
+    {
+      "query_id": "q004",
+      "query": "subsidy for farmers to install a submersible or centrifugal motor pump",
+      "retrieved_ids": [
+        "agfiscmpwa",
+        "ascfiscmpa",
+        "mnny"
+      ],
+      "expected_ids": [
+        "agfiscmpwa",
+        "ascfiscmpa"
+      ],
+      "precision@k": 0.6666666666666666,
+      "recall@k": 1.0,
+      "mrr": 1.0,
+      "ndcg@k": 1.0,
+      "latency": {
+        "embed_and_search_ms": 835.8692000001611,
+        "rerank_ms": 1066.4182000000437,
+        "total_ms": 1902.2874000002048
+      }
+    },
+    {
+      "query_id": "q005",
+      "query": "extra pension for a 100 percent disabled ex-army man",
+      "retrieved_ids": [
+        "apdemnc",
+        "apdesmc",
+        "fappesm"
+      ],
+      "expected_ids": [
+        "apdesmc",
+        "apdemnc"
+      ],
+      "precision@k": 0.6666666666666666,
+      "recall@k": 1.0,
+      "mrr": 1.0,
+      "ndcg@k": 1.0,
+      "latency": {
+        "embed_and_search_ms": 632.9263999978139,
+        "rerank_ms": 1085.5701000000408,
+        "total_ms": 1718.4964999978547
+      }
+    },
+    {
+      "query_id": "q006",
+      "query": "monthly pension grant for old craftsmen",
+      "retrieved_ids": [
+        "mgtocpp",
+        "gfaffeoadp",
+        "nhdp-dba-saic"
+      ],
+      "expected_ids": [
+        "mgtocpp"
+      ],
+      "precision@k": 0.3333333333333333,
+      "recall@k": 1.0,
+      "mrr": 1.0,
+      "ndcg@k": 1.0,
+      "latency": {
+        "embed_and_search_ms": 550.1321000010648,
+        "rerank_ms": 1153.3429000010074,
+        "total_ms": 1703.4750000020722
+      }
+    },
+    {
+      "query_id": "q007",
+      "query": "financial assistance for the delivery of a baby",
+      "retrieved_ids": [
+        "adcmptp",
+        "mbcbocwwb",
+        "gfapscplw"
+      ],
+      "expected_ids": [
+        "fandsd",
+        "adcmptp"
+      ],
+      "precision@k": 0.3333333333333333,
+      "recall@k": 0.5,
+      "mrr": 1.0,
+      "ndcg@k": 0.6131471927654584,
+      "latency": {
+        "embed_and_search_ms": 1008.0698000019765,
+        "rerank_ms": 1107.0470999984536,
+        "total_ms": 2115.11690000043
+      }
+    },
+    {
+      "query_id": "q008",
+      "query": "marriage assistance for daughters of poor widows",
+      "retrieved_ids": [
+        "famdpwog",
+        "evrmnmasfdopwsii",
+        "evrmnmasfdopwsi"
+      ],
+      "expected_ids": [
+        "evrmnmasfdopwsi",
+        "evrmnmasfdopwsii"
+      ],
+      "precision@k": 0.6666666666666666,
+      "recall@k": 1.0,
+      "mrr": 0.5,
+      "ndcg@k": 0.6934264036172708,
+      "latency": {
+        "embed_and_search_ms": 831.3543000003847,
+        "rerank_ms": 1170.0657999972464,
+        "total_ms": 2001.420099997631
+      }
+    },
+    {
+      "query_id": "q009",
+      "query": "assistance for farmers to sink a tubewell",
+      "retrieved_ids": [
+        "agfst",
+        "ascfst",
+        "agfiscmpwa"
+      ],
+      "expected_ids": [
+        "agfst",
+        "ascfst"
+      ],
+      "precision@k": 0.6666666666666666,
+      "recall@k": 1.0,
+      "mrr": 1.0,
+      "ndcg@k": 1.0,
+      "latency": {
+        "embed_and_search_ms": 5799.936100000195,
+        "rerank_ms": 1180.9935999990557,
+        "total_ms": 6980.929699999251
+      }
+    },
+    {
+      "query_id": "q010",
+      "query": "financial help for serious disease treatment for ex-servicemen or their widows",
+      "retrieved_ids": [
+        "affdf-serious-disease-treatment",
+        "rmewf",
+        "rmewf-education"
+      ],
+      "expected_ids": [
+        "affdf-serious-disease-treatment"
+      ],
+      "precision@k": 0.3333333333333333,
+      "recall@k": 1.0,
+      "mrr": 1.0,
+      "ndcg@k": 1.0,
+      "latency": {
+        "embed_and_search_ms": 553.2442000003357,
+        "rerank_ms": 1085.1111999982095,
+        "total_ms": 1638.3553999985452
+      }
+    }
+  ],
+  "averages": {
+    "precision@k": 0.6,
+    "recall@k": 0.9166666666666666,
+    "mrr": 0.95,
+    "ndcg@k": 0.9010491685416863
+  },
+  "latency_summary": {
+    "embed_and_search_ms": {
+      "mean_ms": 1219.7911000002932,
+      "median_ms": 732.1403499990993,
+      "p95_ms": 1008.0698000019765,
+      "p99_ms": 1008.0698000019765
+    },
+    "rerank_ms": {
+      "mean_ms": 1126.7111299992393,
+      "median_ms": 1108.3383499990305,
+      "p95_ms": 1180.9935999990557,
+      "p99_ms": 1180.9935999990557
+    },
+    "total_ms": {
+      "mean_ms": 2346.5022299995326,
+      "median_ms": 1844.1502500008937,
+      "p95_ms": 2115.11690000043,
+      "p99_ms": 2115.11690000043
+    }
+  }
+}
