@@ -1,26 +1,24 @@
-from langchain_qdrant import QdrantVectorStore, RetrievalMode
-from qdrant_client import QdrantClient
-from voice.retrieval.embeddings import embeddings, sparse_embeddings
-from dotenv import load_dotenv
 import os
+import weaviate
+from langchain_weaviate.vectorstores import WeaviateVectorStore
+from voice.retrieval.embeddings import embeddings
 
-load_dotenv()
+INDEX_NAME = "SarkariSchemesVoice"
+TEXT_KEY = "document_text"
+FILTER_PROPERTIES = ["scheme_id", "scheme_name", "government_level"]
 
-qdrant_url = os.getenv("QDRANT_URL")
-qdrant_api_key = os.getenv("QDRANT_API_KEY")
+WEAVIATE_HOST = os.getenv("WEAVIATE_HOST", "localhost")
 
-client = QdrantClient(
-    url=qdrant_url,
-    api_key=qdrant_api_key,
-)
 
-vectorstore = QdrantVectorStore(
-    client=client,
-    collection_name='sarkari-schemes-voice',
-    embedding=embeddings,
-    retrieval_mode=RetrievalMode.HYBRID,
-    vector_name="dense",
-    sparse_embedding=sparse_embeddings,
-    sparse_vector_name="bm25",
+def get_vectorstore() -> WeaviateVectorStore:
+    client = weaviate.connect_to_local(host=WEAVIATE_HOST)
 
-)
+    vectorstore = WeaviateVectorStore(
+        client=client,
+        index_name=INDEX_NAME,
+        text_key=TEXT_KEY,
+        embedding=embeddings,
+        attributes=FILTER_PROPERTIES,
+    )
+
+    return vectorstore

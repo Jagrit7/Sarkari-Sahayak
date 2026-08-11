@@ -6,6 +6,7 @@ not data/query.py.
 """
 
 import asyncio
+import re
 
 from pipecat.adapters.schemas.function_schema import FunctionSchema
 from pipecat.adapters.schemas.tools_schema import ToolsSchema
@@ -16,6 +17,15 @@ from voice.retrieval.retriever import search_schemes
 
 TOOL_NAME = "search_schemes"
 MAX_RESULTS = 2  # how many schemes to hand back to the LLM per call — kept low, this is spoken aloud
+
+# document_text is built as labeled sections, e.g. "Benefits: ...\nEligibility: ...".
+# This pulls each section out by its label so the LLM gets structured fields to speak from.
+SECTION_LABELS = {
+    "benefits": "Benefits",
+    "eligibility": "Eligibility",
+    "documents": "Documents Required",
+    "how_to_apply": "How to Apply",
+}
 
 search_schemes_schema = FunctionSchema(
     name=TOOL_NAME,
@@ -42,20 +52,27 @@ search_schemes_schema = FunctionSchema(
 SCHEME_TOOLS = ToolsSchema(standard_tools=[search_schemes_schema])
 
 
+def _extract_section(text, label, next_labels):
+    """Pull one labeled section out of document_text, stopping at the next label or end of text."""
+    pattern = rf"{label}:\s*(.*?)(?=\n(?:{'|'.join(next_labels)}):|$)"
+    match = re.search(pattern, text, re.DOTALL)
+    return match.group(1).strip() if match else ""
+
+
 def _format(docs):
-    """Trim each scheme's metadata to what's tolerable to speak aloud."""
+    """Trim each scheme's content to what's tolerable to speak aloud."""
+    all_labels = list(SECTION_LABELS.values())
     out = []
     for doc in docs:
         md = doc.metadata or {}
+        text = doc.page_content or ""
         out.append({
             "name": md.get("scheme_name"),
             "level": md.get("government_level"),
-            "state": md.get("target_state"),
-            "benefits": (md.get("benefits") or "")[:300],
-            "eligibility": (md.get("eligibility") or "")[:300],
-            "documents": (md.get("required_documents") or "")[:200],
-            "how_to_apply": (md.get("application_process") or "")[:200],
-            "source": md.get("source_url"),
+            "benefits": _extract_section(text, SECTION_LABELS["benefits"], all_labels)[:300],
+            "eligibility": _extract_section(text, SECTION_LABELS["eligibility"], all_labels)[:300],
+            "documents": _extract_section(text, SECTION_LABELS["documents"], all_labels)[:200],
+            "how_to_apply": _extract_section(text, SECTION_LABELS["how_to_apply"], all_labels)[:200],
         })
     return out
 
