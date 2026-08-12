@@ -5,7 +5,13 @@ from voice.retrieval.embeddings import embeddings
 
 INDEX_NAME = "SarkariSchemesVoice"
 TEXT_KEY = "document_text"
-FILTER_PROPERTIES = ["scheme_id", "scheme_name", "government_level"]
+FILTER_PROPERTIES = [
+    "scheme_id",
+    "scheme_name",
+    "government_level",
+    "section",
+    "sparse_text",
+]
 
 WEAVIATE_HOST = os.getenv("WEAVIATE_HOST", "localhost")
 

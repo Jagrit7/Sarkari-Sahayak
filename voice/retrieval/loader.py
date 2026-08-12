@@ -5,9 +5,9 @@ load_dotenv()
 
 def load_files():
     loader = CSVLoader(
-        file_path="/app/data/schemes_compact_cleaned_merged.csv",
+        file_path="/app/data/schemes_compact_cleaned_merged_chunked.csv",
         content_columns=["document_text"],
-        metadata_columns=["scheme_id", "scheme_name", "government_level", "sparse_text"],
+        metadata_columns=["scheme_id", "scheme_name", "government_level", "sparse_text", "section"],
         encoding="utf-8",
     )
 
