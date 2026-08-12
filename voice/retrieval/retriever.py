@@ -23,7 +23,21 @@ def search_schemes(query, k=3, candidate_k=15, government_level=None, return_lat
     )
     t1 = time.perf_counter()
 
-    docs = rerank(query, candidates, top_k=k) if candidates else []
+    # rerank the FULL candidate pool (not just top k), since the same scheme can
+    # appear as multiple section-chunks and we need enough ranked depth to dedupe
+    # down to k distinct schemes without losing a genuinely correct one.
+    reranked = rerank(query, candidates, top_k=candidate_k) if candidates else []
+
+    seen_schemes = set()
+    docs = []
+    for doc in reranked:
+        scheme_id = doc.metadata.get("scheme_id")
+        if scheme_id in seen_schemes:
+            continue
+        seen_schemes.add(scheme_id)
+        docs.append(doc)
+        if len(docs) == k:
+            break
     t2 = time.perf_counter()
 
     if not return_latency:

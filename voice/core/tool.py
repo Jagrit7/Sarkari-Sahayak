@@ -312,5 +312,6 @@ def register_scheme_tool(llm):
     llm.register_function("check_documents", check_documents_handler)
     llm.register_function("check_benefits", check_benefits_handler)
     llm.register_function("check_application_process", check_application_process_handler)
+    llm.register_function("check_scheme_details", check_scheme_details)
 
 
