@@ -51,12 +51,11 @@ def search_schemes(query, k=3, candidate_k=15, government_level=None, return_lat
     return docs, latency
 
 
-def check_eligibility(query,scheme_name, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
+def check_eligibility(query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
     filters = (
 
             Filter.by_property("scheme_id").equal(scheme_id)
             & Filter.by_property("section").equal("eligibility")
-            & Filter.by_property("scheme_name").equal(scheme_name)
     )
 
     if government_level is not None:
@@ -86,11 +85,10 @@ def check_eligibility(query,scheme_name, scheme_id, candidate_k=5, k=1, governme
     return docs, latency
 
 
-def check_documents(query, scheme_name, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
+def check_documents(query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
     filters = (
             Filter.by_property("scheme_id").equal(scheme_id)
             & Filter.by_property("section").equal("documents")
-            & Filter.by_property("scheme_name").equal(scheme_name)
     )
 
     if government_level is not None:
@@ -119,11 +117,10 @@ def check_documents(query, scheme_name, scheme_id, candidate_k=5, k=1, governmen
     }
     return docs, latency
 
-def check_benefits(query, scheme_name, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
+def check_benefits(query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
     filters = (
             Filter.by_property("scheme_id").equal(scheme_id)
             & Filter.by_property("section").equal("benefits")
-            & Filter.by_property("scheme_name").equal(scheme_name)
     )
 
     if government_level is not None:
@@ -152,11 +149,10 @@ def check_benefits(query, scheme_name, scheme_id, candidate_k=5, k=1, government
     }
     return docs, latency
 
-def check_application_process(query, scheme_name, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
+def check_application_process(query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
     filters = (
             Filter.by_property("scheme_id").equal(scheme_id)
             & Filter.by_property("section").equal("application")
-            & Filter.by_property("scheme_name").equal(scheme_name)
     )
 
     if government_level is not None:
@@ -185,11 +181,10 @@ def check_application_process(query, scheme_name, scheme_id, candidate_k=5, k=1,
     }
     return docs, latency
 
-def check_scheme_details(query, scheme_name, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
+def check_scheme_details(query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
     filters = (
             Filter.by_property("scheme_id").equal(scheme_id)
             & Filter.by_property("section").equal("details")
-            & Filter.by_property("scheme_name").equal(scheme_name)
     )
 
     if government_level is not None:

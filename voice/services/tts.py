@@ -10,7 +10,7 @@ def configure_tts() -> SarvamTTSService:
             model="bulbul:v3-beta",  # Their latest ultra-fast model
             voice="aditya",  # Standard male voice (or use "shubh")
             language=Language.HI,  # Set default to Hindi
-            pace=1.1  # Slightly speed it up for better conversational flow
+            pace=1.4  # Slightly speed it up for better conversational flow
         )
     )
 

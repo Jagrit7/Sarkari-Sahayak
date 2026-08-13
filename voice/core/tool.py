@@ -87,7 +87,7 @@ check_eligibility_schema = FunctionSchema(
             ),
         },
     },
-    required=["query", "scheme_name", "scheme_id"],
+    required=["query", "scheme_id"],
 )
 
 check_documents_schema = FunctionSchema(
@@ -126,7 +126,7 @@ check_documents_schema = FunctionSchema(
             ),
         },
     },
-    required=["query", "scheme_name", "scheme_id"],
+    required=["query", "scheme_id"],
 )
 
 check_benefits_schema = FunctionSchema(
@@ -166,7 +166,7 @@ check_benefits_schema = FunctionSchema(
             ),
         },
     },
-    required=["query", "scheme_name", "scheme_id"],
+    required=["query", "scheme_id"],
 )
 
 check_application_process_schema = FunctionSchema(
@@ -192,7 +192,7 @@ check_application_process_schema = FunctionSchema(
             "description": "The caller's specific question about the application process, in English."
         },
     },
-    required=["query", "scheme_name", "scheme_id"],
+    required=["query" , "scheme_id"],
 )
 
 check_scheme_details_schema = FunctionSchema(
@@ -233,7 +233,7 @@ check_scheme_details_schema = FunctionSchema(
             ),
         },
     },
-    required=["query", "scheme_name", "scheme_id"],
+    required=["query", "scheme_id"],
 )
 SCHEME_TOOLS = ToolsSchema(standard_tools=[search_schemes_schema, check_eligibility_schema, check_documents_schema, check_benefits_schema, check_application_process_schema, check_scheme_details_schema])
 
@@ -271,7 +271,7 @@ async def search_schemes_handler(params: FunctionCallParams):
 async def check_eligibility_handler(params: FunctionCallParams):
     args = params.arguments
     docs = await asyncio.to_thread(
-        check_eligibility, args["query"], args["scheme_name"], args["scheme_id"]
+        check_eligibility, args["query"], args["scheme_id"]
     )
     await params.result_callback(_format_section(docs))
 
@@ -279,7 +279,7 @@ async def check_eligibility_handler(params: FunctionCallParams):
 async def check_documents_handler(params: FunctionCallParams):
     args = params.arguments
     docs = await asyncio.to_thread(
-        check_documents, args["query"], args["scheme_name"], args["scheme_id"]
+        check_documents, args["query"], args["scheme_id"]
     )
     await params.result_callback(_format_section(docs))
 
@@ -287,7 +287,7 @@ async def check_documents_handler(params: FunctionCallParams):
 async def check_benefits_handler(params: FunctionCallParams):
     args = params.arguments
     docs = await asyncio.to_thread(
-        check_benefits, args["query"], args["scheme_name"], args["scheme_id"]
+        check_benefits, args["query"], args["scheme_id"]
     )
     await params.result_callback(_format_section(docs))
 
@@ -295,14 +295,14 @@ async def check_benefits_handler(params: FunctionCallParams):
 async def check_application_process_handler(params: FunctionCallParams):
     args = params.arguments
     docs = await asyncio.to_thread(
-        check_application_process, args["query"], args["scheme_name"], args["scheme_id"]
+        check_application_process, args["query"], args["scheme_id"]
     )
     await params.result_callback(_format_section(docs))
 
 async def check_scheme_details_handler(params: FunctionCallParams):
     args = params.arguments
     docs = await asyncio.to_thread(
-        check_scheme_details, args["query"], args["scheme_name"], args["scheme_id"]
+        check_scheme_details, args["query"], args["scheme_id"]
     )
     await params.result_callback(_format_section(docs))
 
@@ -312,6 +312,6 @@ def register_scheme_tool(llm):
     llm.register_function("check_documents", check_documents_handler)
     llm.register_function("check_benefits", check_benefits_handler)
     llm.register_function("check_application_process", check_application_process_handler)
-    llm.register_function("check_scheme_details", check_scheme_details)
+    llm.register_function("check_scheme_details", check_scheme_details_handler)
 
 

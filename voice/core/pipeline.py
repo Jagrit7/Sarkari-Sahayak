@@ -42,7 +42,7 @@ async def create_pipeline(transport: LiveKitTransport) -> tuple[WorkerRunner, Pi
     )
 
     vad_processor = VADProcessor(
-        vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.8))
+        vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.5))
     )
 
 
