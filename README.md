@@ -105,7 +105,7 @@ and how to apply — grounded in real scheme data, never invented.
 
 One phone front door, a shared Groq brain, and a hybrid retrieval layer over 16,795 section-chunks.
 
-![Architecture and flow](docs/architecture.svg)
+![Architecture and flow](docs/architecture.png)
 
 - **Call path:** phone caller → Twilio (SIP) → LiveKit Cloud → the Pipecat bot (`voice/main.py`),
   which runs VAD and turn-taking, speech-to-text, the LLM, and text-to-speech.
@@ -149,7 +149,7 @@ reranked by FlashRank and deduplicated down to distinct schemes before the LLM e
 benefits, eligibility, documents, application) — 16,795 rows total — then embedded and stored as
 individual hybrid objects in Weaviate.
 
-![Data ingestion and schema](docs/schema.svg)
+![Data ingestion and schema](docs/schema.png)
 
 - **One scheme = up to 5 section-chunks**, so a hit on "eligibility" or "documents" comes back
   scoped to exactly that section, not the whole scheme dumped at once.
