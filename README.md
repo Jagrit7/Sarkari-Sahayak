@@ -4,20 +4,18 @@
 
 **Government welfare schemes, one phone call away.**
 
-A multilingual voice **and** chat assistant that helps any citizen in India find the government
-welfare schemes they actually qualify for — by calling a phone number or opening a website and
-speaking naturally in their own language. No smartphone, no internet, no reading required.
+A multilingual voice assistant that helps any citizen in India find the government welfare
+schemes they actually qualify for — by calling a phone number and speaking naturally. No
+smartphone, no internet, no reading required.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
 ![Pipecat](https://img.shields.io/badge/Pipecat-voice%20AI-5A45FF?style=flat-square)
 ![LiveKit](https://img.shields.io/badge/LiveKit-realtime-1FD5F9?style=flat-square)
 ![Groq](https://img.shields.io/badge/Groq-gpt--oss-F55036?style=flat-square)
-![Qdrant](https://img.shields.io/badge/Qdrant-vector%20DB-DC244C?style=flat-square)
-![Langchain](https://img.shields.io/badge/LangChain-ffffff?logo=langchain&logoColor=green)
+![Weaviate](https://img.shields.io/badge/Weaviate-vector%20DB-DC244C?style=flat-square)
+![LangChain](https://img.shields.io/badge/LangChain-ffffff?logo=langchain&logoColor=green)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
 
 <sub>Built for the Agent&#123;a&#125;thon hackathon · Open Innovation Track · by Team **The Debuggers**</sub>
 
@@ -38,6 +36,7 @@ speaking naturally in their own language. No smartphone, no internet, no reading
 - [Getting Started](#getting-started)
 - [Project Structure](#project-structure)
 - [Configuration](#configuration)
+- [Evals](#evals)
 - [Deployment](#deployment)
 - [Limitations and Roadmap](#limitations-and-roadmap)
 - [Team](#team)
@@ -52,15 +51,18 @@ India runs thousands of welfare schemes, but the people who need them most often
 claim them — the information sits behind text-heavy, mostly-English government portals that demand
 strong reading and digital literacy.
 
-**Sarkari Sahayak** removes that barrier entirely. It is an AI assistant with **two front doors**:
+**Sarkari Sahayak** removes that barrier entirely. It is a voice assistant you reach by calling a
+regular phone number and talking in your own language — works on any phone, even a basic keypad
+phone, with no internet or app.
 
-- **Voice** — call a regular phone number and talk in your own language. Works on any phone, even a
-  basic keypad phone, with no internet or app.
-- **Chat** — a web interface for users who are comfortable typing.
+The assistant is grounded in a knowledge base of **3,356 real government schemes**, split into
+**16,795 section-level chunks** (details, benefits, eligibility, documents, application process).
+Ask in plain language and it tells you what you qualify for, the benefits, the documents you need,
+and how to apply — grounded in real scheme data, never invented.
 
-Both channels share one AI brain and one knowledge base of **3,397 real government schemes**. Ask in
-plain language and it tells you what you qualify for, the benefits, the documents you need, and how
-to apply — grounded in real scheme data, never invented.
+> A web chat channel existed earlier in this project and is being rebuilt; it's rolling out again
+> in a future release. For now, the phone line is the only front door — see
+> [Limitations and Roadmap](#limitations-and-roadmap).
 
 ---
 
@@ -75,13 +77,17 @@ to apply — grounded in real scheme data, never invented.
 
 ## Key Features
 
-- **Voice + chat** — reachable by a phone call or the website.
-- **Works on any phone** — even a keypad phone; no smartphone, internet, or app needed.
-- **Multilingual** — understands and replies in Hindi, English, and Indian languages.
+- **Voice-first** — reachable by a plain phone call, no smartphone or app needed.
 - **Grounded answers** — hybrid RAG over real scheme data; it will not invent schemes or amounts.
-- **Eligibility-aware** — finds best-fit schemes, checks eligibility, and lists required documents.
-- **Broad coverage** — National, State, and Regional schemes (3,397 in the database).
-- **Built on free / low-cost infrastructure** — designed to scale without heavy costs.
+- **Scheme-aware follow-ups** — once a scheme is identified, dedicated tools answer eligibility,
+  documents, benefits, application steps, or a general overview without losing context.
+- **Query rewriting** — every tool call is translated to English and has its government-level /
+  state filters extracted by a small, fast Groq pass before it reaches retrieval.
+- **Broad coverage** — National, State, and Regional schemes (3,356 in the database).
+- **Evaluated, not just demoed** — both retrieval and generation are scored against golden sets
+  with ragas (see [Evals](#evals)).
+- **Built on free / low-cost infrastructure** — self-hosted Weaviate in Docker, Cloudflare Workers
+  AI embeddings, Groq inference.
 
 ---
 
@@ -89,61 +95,71 @@ to apply — grounded in real scheme data, never invented.
 
 | Channel | Link |
 | --- | --- |
-| Web chat | [sarkari-sahayak-seven.vercel.app](https://sarkari-sahayak-seven.vercel.app) |
-| Chat API (backend) | `https://sarkari-sahayak-chat.onrender.com` |
 | Voice helpline | Demo line available on request <sub>(currently a Twilio trial number)</sub> |
-
-> The Render free instance sleeps when idle, so the first chat request after a while may take a few
-> seconds to wake it up.
+| Recorded demo | `voice/scheme-setu demo.mpeg` |
+| Architecture walkthrough | `voice/sarkari-sahayak-voice-architecture.html` (open locally in a browser) |
 
 ---
 
 ## Architecture
 
-Two front doors, one shared Groq brain, and a hybrid retrieval layer over 3,397 schemes.
+One phone front door, a shared Groq brain, and a hybrid retrieval layer over 16,795 section-chunks.
 
-![Architecture and flow](docs/architecture.png)
+![Architecture and flow](docs/architecture.svg)
 
-- **Voice path:** phone caller → Twilio (SIP) → LiveKit Cloud → the Pipecat bot (`main.py`), which
-  runs VAD and turn-taking, speech-to-text, the LLM, and text-to-speech.
-- **Chat path:** React frontend (Vercel) → FastAPI (`chat_server.py`, Render) → the same LLM.
-- **Shared brain + retrieval:** the LLM calls a `search_schemes` tool, which embeds the question via
-  Cloudflare Workers AI and runs a hybrid search in Qdrant, returning the matching schemes.
+- **Call path:** phone caller → Twilio (SIP) → LiveKit Cloud → the Pipecat bot (`voice/main.py`),
+  which runs VAD and turn-taking, speech-to-text, the LLM, and text-to-speech.
+- **Tools, not one search:** the LLM has six tools — `search_schemes` to discover schemes, and
+  `check_eligibility` / `check_documents` / `check_benefits` / `check_application_process` /
+  `check_scheme_details` to go deeper on one already-identified scheme.
+- **Query rewriting:** before any tool call reaches retrieval, a small Groq pass
+  (`voice/core/query_rewriter.py`) translates the caller's words to English and pulls out an
+  explicit `government_level` / `state`, since the main LLM's phrasing doesn't reliably match the
+  vector store's exact-match filters on its own.
+- **Shared brain + retrieval:** each tool call embeds the question via Cloudflare Workers AI, runs
+  a hybrid search in Weaviate, reranks the candidate pool with FlashRank, and returns the matching
+  section-chunks.
 
 ---
 
 ## How It Works
 
-**Voice (real-time loop):** LiveKit moves the audio; Pipecat orchestrates the conversation. Audio
+**Real-time voice loop:** LiveKit moves the audio; Pipecat orchestrates the conversation. Audio
 enters the pipeline, a VAD plus turn-detector decide when the caller has finished, speech is
-transcribed, the language is locked for the call, the LLM answers (calling the scheme search when
-needed), and the reply is spoken back through Sarvam TTS and out via LiveKit.
+transcribed by Sarvam STT, a welcome message plays, the LLM answers (calling one of the six scheme
+tools when needed), and the reply is spoken back through Sarvam TTS and out via LiveKit. The
+DTVR/IVR language menu (`voice/core/ivr.py`) exists in code but is currently disabled in the
+pipeline — the assistant replies in Hindi only for now; see [Limitations and Roadmap](#limitations-and-roadmap).
 
-**Chat (request/response):** the browser holds the conversation history and POSTs each new message
-(plus recent history) to `/chat`. FastAPI runs one turn through the same LLM and search, and returns
-the answer. The server is stateless — the browser owns the conversation, the backend owns the
-thinking.
+**Tool calling:** the LLM never answers from its own memory about a specific scheme — it must call
+a tool first. `search_schemes` discovers candidate schemes from a need described in the caller's
+own words; once a scheme is identified (by name and `scheme_id`), the five `check_*` tools each
+pull exactly one section of that scheme's record.
 
-**Retrieval (RAG):** every question is matched two ways at once — a dense vector (meaning) and a
-BM25 sparse vector (keywords) — and the results are fused with Reciprocal Rank Fusion (RRF). The LLM
-answers only from the returned schemes.
+**Retrieval (hybrid RAG):** every tool query is rewritten to clean English with explicit filters,
+matched two ways at once inside Weaviate — a dense vector (meaning) and BM25 over `sparse_text`
+(keywords), fused with Weaviate's own hybrid scoring (alpha 0.6) — then the full candidate pool is
+reranked by FlashRank and deduplicated down to distinct schemes before the LLM ever sees it.
 
 ---
 
 ## Data and Schema
 
-3,397 raw schemes are cleaned into a strict 39-field record (zero nulls), then stored as one hybrid
-point per scheme in Qdrant.
+3,356 raw schemes from myScheme are cleaned and split into up to 5 section-rows each (details,
+benefits, eligibility, documents, application) — 16,795 rows total — then embedded and stored as
+individual hybrid objects in Weaviate.
 
-![Data ingestion and schema](docs/schema.png)
+![Data ingestion and schema](docs/schema.svg)
 
-- **One scheme = one searchable point** (no chunking) — every result comes back whole.
-- **Content fields feed the AI** (description, benefits, eligibility, documents, how to apply);
-  **metadata fields feed the filters** (government level, state, category).
-- **Hybrid vectors:** a 1024-dim BGE-M3 dense vector (cosine) plus a BM25 sparse vector (IDF),
-  fused by RRF at query time.
-- **Pipeline:** `build_json_file_for_schemes.py` (clean) → `create_collection.py` (define vectors +
-  indexes) → `ingest.py` (embed + upsert, resumable).
+- **One scheme = up to 5 section-chunks**, so a hit on "eligibility" or "documents" comes back
+  scoped to exactly that section, not the whole scheme dumped at once.
+- **`document_text` feeds the LLM** (scheme name + section prose); **`sparse_text` feeds BM25**
+  (normalized keywords); **`government_level` and `section` feed the filters**.
+- **Hybrid vectors:** a dense vector from Cloudflare's `bge-large-en-v1.5` plus Weaviate's built-in
+  BM25 over `sparse_text`, fused at query time (alpha 0.6).
+- **Pipeline:** `data/compact_data_cleaning_chunked_sections.ipynb` (raw myScheme export → cleaned,
+  chunked CSV) → `voice/retrieval/loader.py` (CSV → LangChain Documents) →
+  `voice/retrieval/ingest.py` (embed + upsert, resumable, chunked in batches of 200).
 
 ---
 
@@ -153,12 +169,15 @@ point per scheme in Qdrant.
 | --- | --- |
 | Telephony / transport | Twilio (phone → SIP), LiveKit Cloud (real-time audio, SIP bridge) |
 | Voice orchestration | Pipecat (VAD, turn-taking, pipeline) |
-| Speech | Sarvam AI — `saaras` (STT) and `bulbul` (TTS) |
-| LLM | Groq — `gpt-oss` (20B for voice, 120B for chat) |
-| Retrieval | Qdrant Cloud (hybrid dense + BM25, RRF) · Cloudflare Workers AI — BGE-M3 embeddings |
-| Chat backend | FastAPI (Python) |
-| Frontend | React + Vite |
-| Hosting | Vercel (frontend) · Render (chat API) · LiveKit Cloud · Qdrant Cloud |
+| Speech | Sarvam AI — `saaras:v3` (STT) and `bulbul:v3-beta` (TTS) |
+| LLM (conversation) | Groq — `openai/gpt-oss-20b`, low reasoning effort, Hindi-only replies |
+| LLM (query rewriting) | Groq — `llama-3.1-8b-instant`, JSON-only, temperature 0 |
+| Retrieval | Weaviate (self-hosted via Docker, hybrid dense + BM25) · FlashRank reranker
+  (`ms-marco-MiniLM-L-12-v2`) · Cloudflare Workers AI — `bge-large-en-v1.5` embeddings |
+| Evals | ragas (Faithfulness, Answer Relevancy, InstanceRubrics, AspectCritic, ToolCallAccuracy,
+  RubricsScore) |
+| Data pipeline | LangChain (`CSVLoader`, `langchain-weaviate`, `langchain-cloudflare`) |
+| Hosting | LiveKit Cloud · self-hosted Weaviate (Docker) |
 | Data source | myScheme (Government of India) |
 
 ---
@@ -167,14 +186,13 @@ point per scheme in Qdrant.
 
 ### Prerequisites
 
-- Python 3.11+ and Node.js 18+
-- API keys / accounts for: **Groq**, **Sarvam AI**, **Qdrant Cloud**, **Cloudflare** (Workers AI),
-  **LiveKit Cloud**, and **Twilio**
+- Python 3.11+ and Docker (for self-hosted Weaviate)
+- API keys / accounts for: **Groq**, **Sarvam AI**, **Cloudflare** (Workers AI), **LiveKit Cloud**,
+  and **Twilio**
 
 ### 1. Clone
 
 ```bash
-# clone the upstream repo (or your fork of it)
 git clone https://github.com/Jagrit7/Sarkari-Sahayak.git
 cd Sarkari-Sahayak
 ```
@@ -184,51 +202,36 @@ cd Sarkari-Sahayak
 ```bash
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements-chat.txt   # covers the data pipeline + chat API
+pip install -r voice/requirements.txt
 ```
 
 ### 3. Environment variables
 
 ```bash
-cp .env.example .env
-# then open .env and fill in your keys (see Configuration below)
+cp voice/.env.example voice/.env
+# then open voice/.env and fill in your keys (see Configuration below)
 ```
 
-### 4. Build and ingest the scheme data
+### 4. Start Weaviate and ingest the scheme data
 
 ```bash
-python data/build_json_file_for_schemes.py   # raw data -> clean 39-field JSON
-python data/create_collection.py             # create the Qdrant collection + indexes
-python data/ingest.py                         # embed + upsert all 3,397 schemes (resumable)
+docker compose up -d weaviate
+docker compose --profile tools run --rm ingest
 ```
+
+The ingest step is resumable — `data/ingest_progress.txt` is bind-mounted so a rerun after a
+failure or a rate limit picks up where it left off. Pass `--reset-progress` to start clean.
 
 ### 5. Run the voice agent
 
-The voice agent needs the real-time voice stack on top of the chat deps — Pipecat with its
-LiveKit, Silero VAD, Groq, and Sarvam integrations. Install those, then run:
-
 ```bash
-python main.py
+python -m voice.main
 ```
 
-The bot connects out to LiveKit and joins the support room; incoming phone calls (via Twilio → SIP)
-are bridged into that room.
-
-### 6. Run the chat backend
-
-```bash
-uvicorn chat_server:app --reload --port 8000
-```
-
-### 7. Run the frontend
-
-```bash
-cd frontend
-npm install
-# point the frontend at your local API:
-echo "VITE_API_URL=http://localhost:8000" > .env.local
-npm run dev
-```
+The bot connects out to LiveKit and joins the `support-room`; incoming phone calls (via
+Twilio → SIP) are bridged into that room. To test locally without a phone call, generate a
+join token with `python -m voice.generate_token` and connect a LiveKit-compatible client with it,
+or run `python -m voice.voice_server` for a small FastAPI wrapper that also exposes `/token`.
 
 ---
 
@@ -236,69 +239,97 @@ npm run dev
 
 ```
 Sarkari-Sahayak/
-├── main.py                          # Voice agent entrypoint (Pipecat pipeline)
-├── server.py                        # LiveKit agent / worker server
-├── chat_server.py                   # Text chat API (FastAPI) — deployed to Render
-├── requirements-chat.txt            # Dependencies for the data pipeline + chat API
-├── .env.example                     # Template for the required keys
-├── .gitignore
-├── scheme-setu demo.mpeg            # Voice agent demo recording
-├── src/
+├── docker-compose.yml                   # Self-hosted Weaviate + a one-off ingest service
+├── LICENSE
+├── voice/
+│   ├── main.py                          # Voice agent entrypoint (Pipecat pipeline)
+│   ├── voice_server.py                  # FastAPI wrapper — /token, /ws, /health
+│   ├── generate_token.py                # Standalone LiveKit join-token generator (testing)
+│   ├── requirements.txt                 # Full dependency set for the voice agent + evals
+│   ├── .env.example                     # Template for the required keys
+│   ├── scheme-setu demo.mpeg            # Voice agent demo recording
+│   ├── sarkari-sahayak-voice-architecture.html   # Standalone architecture walkthrough page
+│   ├── to-be-fixed-added.txt            # Running engineering backlog
 │   ├── core/
-│   │   ├── pipeline.py              # Assembles the Pipecat pipeline
-│   │   ├── router.py               # Language detection / lock
-│   │   ├── prompts.py              # System prompts (English / Hindi agents)
-│   │   ├── transport.py            # LiveKit transport setup
-│   │   └── config.py               # Settings loaded from environment
-│   └── services/
-│       ├── stt.py                  # Speech-to-text
-│       ├── tts.py                  # Text-to-speech (Sarvam bulbul)
-│       └── llm.py                  # Groq gpt-oss
+│   │   ├── pipeline.py                  # Assembles the Pipecat pipeline
+│   │   ├── ivr.py                       # DTMF language-lock gate (currently disabled) + WelcomeMessage
+│   │   ├── languages.py                 # Single source of truth for the IVR language menu
+│   │   ├── prompt.py                    # System prompt (Hindi-only agent)
+│   │   ├── query_rewriter.py            # Translates + extracts filters before every tool call
+│   │   ├── tool.py                      # The 6 scheme tools exposed to the LLM
+│   │   ├── transport.py                 # LiveKit transport setup
+│   │   └── config.py                    # Settings loaded from environment
+│   ├── services/
+│   │   ├── stt.py                       # Sarvam speech-to-text
+│   │   ├── tts.py                       # Sarvam text-to-speech
+│   │   └── llm.py                       # Groq gpt-oss-20b
+│   ├── retrieval/
+│   │   ├── loader.py                    # CSV -> LangChain Documents
+│   │   ├── embeddings.py                # Cloudflare Workers AI embeddings
+│   │   ├── vectorstore.py               # Weaviate connection + LangChain vector store
+│   │   ├── reranker.py                  # FlashRank reranking
+│   │   ├── retriever.py                 # search_schemes + the 5 check_* section lookups
+│   │   ├── ingest.py                    # Resumable, chunked embed + upsert
+│   │   └── Dockerfile                   # Image used by the docker-compose `ingest` service
+│   └── eval/
+│       ├── retrieval-evals/             # Precision/Recall/NDCG/MRR against a golden query set
+│       └── generation-evals/            # ragas-scored generation quality against a golden set
 ├── data/
-│   ├── build_json_file_for_schemes.py   # Raw scheme data -> clean 39-field JSON
-│   ├── create_collection.py             # Define Qdrant collection + payload indexes
-│   ├── ingest.py                        # Embed (Cloudflare) + upsert into Qdrant
-│   ├── query.py                         # Hybrid search (dense + BM25, RRF)
-│   ├── scheme_tool.py                   # search_schemes tool exposed to the LLM
-│   └── common.py                        # Shared Qdrant / embedding config
-├── frontend/                        # React + Vite chat UI (deployed to Vercel)
-└── docs/                            # Architecture and schema diagrams
+│   ├── compact_data_cleaning_chunked_sections.ipynb   # Raw myScheme export -> cleaned, chunked CSV
+│   ├── schemes_compact_cleaned_merged_chunked.csv     # 16,795 section-chunks, ready to ingest
+│   └── ingest_progress.txt              # Resume checkpoint (bind-mounted into the ingest container)
+└── docs/                                # Architecture and schema diagrams
 ```
 
 ---
 
 ## Configuration
 
-Set these in your `.env` (see `.env.example`):
+Set these in `voice/.env` (see `voice/.env.example`):
 
 | Variable | Used for |
 | --- | --- |
 | `LIVEKIT_API_KEY` | LiveKit Cloud authentication |
 | `LIVEKIT_API_SECRET` | LiveKit Cloud authentication |
 | `LIVEKIT_URL` | LiveKit project URL (`wss://...livekit.cloud`) |
-| `GROQ_API_KEY` | Groq LLM (and Whisper STT, if used) |
+| `GROQ_API_KEY` | Groq LLM (conversation + query rewriting) |
 | `SARVAM_API_KEY` | Sarvam speech (STT / TTS) |
-| `QDRANT_URL` | Qdrant Cloud cluster URL |
-| `QDRANT_API_KEY` | Qdrant Cloud authentication |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Workers AI (BGE-M3 embeddings) |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Workers AI (embeddings) |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare Workers AI authentication |
+| `WEAVIATE_HOST` | Weaviate host — set to `weaviate` automatically inside docker-compose |
 
-The chat API only needs `GROQ_API_KEY`, the two `QDRANT_*`, and the two `CLOUDFLARE_*` keys.
+---
+
+## Evals
+
+Both retrieval and generation are scored against golden sets, not just eyeballed from a demo call.
+
+**Retrieval** (`voice/eval/retrieval-evals/`, 10-query golden set, k=3):
+
+| Precision@k | Recall@k | R-Precision | MRR | NDCG@k |
+| --- | --- | --- | --- | --- |
+| 0.57 | 0.88 | 0.83 | 0.95 | 0.88 |
+
+**Generation** (`voice/eval/generation-evals/`, ragas-scored against a multi-turn golden set):
+
+| Faithfulness | Answer Relevancy | Correctness | Natural Spoken Tone |
+| --- | --- | --- | --- |
+| 0.75 | 0.77 | 2.7 / 3 | 0.88 |
+
+Latency is tracked alongside every run (embed + search, rerank, and full generation turns) so
+retrieval and reply quality never get evaluated without their cost. Re-run either suite with
+`python evaluate_retrieval.py` or `python evaluate_generation.py` from inside the corresponding
+`voice/eval/*-evals/` folder.
 
 ---
 
 ## Deployment
 
-- **Frontend → Vercel:** set the project root to `frontend/` and add `VITE_API_URL` pointing to your
-  chat API (no trailing slash).
-- **Chat API → Render:** Web Service. Build: `pip install -r requirements-chat.txt`. Start:
-  `uvicorn chat_server:app --host 0.0.0.0 --port $PORT`. Add the Groq, Qdrant, and Cloudflare keys.
 - **Voice agent:** runs as a long-lived worker that dials out to LiveKit, so it needs an always-on
   host (for example a free-tier VM) — or run it from your machine during demos.
-- **Vector DB / embeddings:** Qdrant Cloud and Cloudflare Workers AI both have free tiers.
-
-> Tip: on the free Render tier, a small keep-alive ping to `/health` prevents the chat instance from
-> sleeping between requests.
+- **Vector DB:** Weaviate runs self-hosted via `docker-compose.yml` (no managed Weaviate Cloud
+  dependency); persisted to a named volume so re-ingesting isn't required on every restart.
+- **Embeddings:** Cloudflare Workers AI has a free tier.
 
 ---
 
@@ -306,20 +337,22 @@ The chat API only needs `GROQ_API_KEY`, the two `QDRANT_*`, and the two `CLOUDFL
 
 **Current limitations**
 
-- The scheme data is a one-time snapshot. Incremental refresh is built in (via a per-record
-  `content_hash`) but is not yet wired to run automatically.
-- Retrieval filtering can occasionally over-narrow (a state filter may bury large national schemes).
-- No memory across calls or sessions; the current telephony setup handles one caller at a time
-  (demo scale).
+- The DTMF language-menu IVR (`voice/core/ivr.py`) is implemented but currently disabled — the
+  assistant replies in Hindi only for every call, regardless of the language the caller speaks.
+- The web chat channel from an earlier version of this project is being rebuilt and isn't part of
+  this release.
+- The scheme data is a one-time snapshot; incremental refresh isn't wired up yet.
+- No memory across calls; the current telephony setup handles one caller at a time (demo scale),
+  and everyone joins the same `support-room` unless that's changed per deployment.
 
-**Roadmap**
+**Roadmap** (tracked in `voice/to-be-fixed-added.txt`)
 
-- **Live government data** — request official government API access to move off the static snapshot
-  entirely.
-- Smarter retrieval that reliably surfaces flagship national schemes.
-- Voice-driven, end-to-end application auto-fill.
-- Proactive alerts when a newly launched scheme matches a user's profile.
-- WhatsApp integration, Panchayat-office kiosks, and deeper rural-dialect support.
+- Bring the multilingual IVR language-lock back online.
+- Rebuild and re-launch the web chat channel.
+- Full observability / logging, and offline evals wired into CI.
+- Supabase as a unified user/state layer; WhatsApp integration; proactive alerts.
+- Caching, latency work, and support for concurrent/parallel calls beyond one caller at a time.
+- Context and prompt compression for longer conversations.
 
 ---
 
@@ -344,5 +377,6 @@ Released under the [MIT License](LICENSE).
 
 - Scheme data from [myScheme](https://www.myscheme.gov.in/) (Government of India).
 - Built with [Pipecat](https://www.pipecat.ai/), [LiveKit](https://livekit.io/),
-  [Sarvam AI](https://www.sarvam.ai/), [Groq](https://groq.com/), [Qdrant](https://qdrant.tech/),
-  and [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/).
+  [Sarvam AI](https://www.sarvam.ai/), [Groq](https://groq.com/), [Weaviate](https://weaviate.io/),
+  [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank), and
+  [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/).
