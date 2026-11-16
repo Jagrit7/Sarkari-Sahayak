@@ -198,7 +198,7 @@
     <a class="sub" href="#imports">— Tool calling</a>
     <a href="#howitworks">04 · How The Agent Works</a>
     <a class="sub" href="#lifecycle">— Call lifecycle</a>
-    <a class="sub" href="#ivr">— IVR language gate</a>
+    <a class="sub" href="#router">— Language router</a>
     <a class="sub" href="#toolflow">— Tool-call round trip</a>
     <a class="sub" href="#config">— Model config choices</a>
   </nav>
@@ -282,12 +282,12 @@
           </g>
           <line x1="670" y1="105" x2="718" y2="105" stroke="#8b94a6" marker-end="url(#arrow)"/>
 
-          <!-- ivr gate -->
+          <!-- language router -->
           <g>
             <rect x="960" y="70" width="230" height="70" rx="10" fill="#1c1710" stroke="#f5a623"/>
-            <text x="1075" y="94" fill="#e8ebf1" font-size="12.5" text-anchor="middle">IVRGate</text>
-            <text x="1075" y="112" fill="#97a1b3" font-size="10" text-anchor="middle">DTMF language lock</text>
-            <text x="1075" y="126" fill="#97a1b3" font-size="9.5" text-anchor="middle">swallows text until locked</text>
+            <text x="1075" y="94" fill="#e8ebf1" font-size="12.5" text-anchor="middle">LanguageRouter</text>
+            <text x="1075" y="112" fill="#97a1b3" font-size="10" text-anchor="middle">follows caller's language</text>
+            <text x="1075" y="126" fill="#97a1b3" font-size="9.5" text-anchor="middle">switches the TTS voice</text>
           </g>
           <line x1="910" y1="105" x2="958" y2="105" stroke="#8b94a6" marker-end="url(#arrow)"/>
 
@@ -390,7 +390,7 @@
           <span><span class="dot" style="background:#3ecfc0"></span>LiveKit transport</span>
           <span><span class="dot" style="background:#9b8cff"></span>Turn-taking / VAD</span>
           <span><span class="dot" style="background:#b7e07a"></span>Model services (STT/LLM/TTS)</span>
-          <span><span class="dot" style="background:#f5a623"></span>Custom processor (IVR gate)</span>
+          <span><span class="dot" style="background:#f5a623"></span>Custom processor (language router)</span>
           <span><span class="dot" style="background:#ff8ba0"></span>Context / memory</span>
           <span><span class="dot" style="background:#ffd166"></span>Tool call + retrieval</span>
         </div>
@@ -410,7 +410,7 @@
       </p>
       <p>
         The core idea is a <strong>pipeline of frame processors</strong>. Every unit of data —
-        a chunk of audio, a transcribed sentence, an LLM token, a DTMF keypress, a "start
+        a chunk of audio, a transcribed sentence, an LLM token, a "start
         speaking now" signal — is wrapped in a <code>Frame</code> object and pushed through an
         ordered list of <code>FrameProcessor</code>s, exactly the way audio moves through a
         mixing desk: each stage can read a frame, transform it, drop it, or pass it straight
@@ -419,9 +419,10 @@
       <p>
         Frames travel in two directions: <strong>downstream</strong> (the normal direction —
         mic audio in, spoken reply out) and <strong>upstream</strong> (control signals that need
-        to go back toward the input side, like telling the STT service to switch languages).
+        to go back toward the input side, such as error reports).
         This bidirectional design is what lets a processor sitting in the middle of the chain,
-        like our <code>IVRGate</code>, reconfigure services on either side of it.
+        like our <code>LanguageRouter</code>, reconfigure a service further down the chain while
+        the call is running.
       </p>
       <p>
         Pipecat deliberately keeps the <strong>services layer pluggable</strong>: STT, LLM, and
@@ -445,7 +446,7 @@
       <div class="sec-head"><span class="sec-num">03</span><h2>Every Pipecat Import, Explained</h2></div>
       <p class="sec-desc">
         Grouped by what each import is responsible for, in the order they appear across
-        <code>core/pipeline.py</code>, <code>core/transport.py</code>, <code>core/ivr.py</code>,
+        <code>core/pipeline.py</code>, <code>core/transport.py</code>, <code>core/language_router.py</code>,
         <code>core/languages.py</code>, <code>core/tool.py</code>, and <code>services/*.py</code>.
       </p>
 
@@ -545,9 +546,9 @@
           <h3><code>LLMContext</code></h3>
           <p>The actual conversation memory object: a running <code>messages</code> list plus the
           <code>tools</code> schema the LLM is allowed to call. One instance is created in
-          <code>create_pipeline()</code> and shared by reference across the IVR gate and both
-          aggregators — so "baking in" the language directive once (in <code>ivr.py</code>) is
-          visible everywhere for the rest of the call.</p>
+          <code>create_pipeline()</code> and shared by reference across the language router and both
+          aggregators — so a reply-language directive the router appends (in
+          <code>language_router.py</code>) is visible to the LLM from that turn on.</p>
         </div>
         <div class="card cat-context">
           <div class="kicker">pipecat.processors.aggregators.llm_response_universal</div>
@@ -565,7 +566,7 @@
         <div class="card cat-frames">
           <div class="kicker">pipecat.processors.frame_processor</div>
           <h3><code>FrameProcessor</code>, <code>FrameDirection</code></h3>
-          <p>The base class every custom pipeline stage extends — <code>IVRGate</code> is one.
+          <p>The base class every custom pipeline stage extends — <code>LanguageRouter</code> is one.
           Subclassing it means overriding <code>process_frame(frame, direction)</code> and calling
           <code>self.push_frame(...)</code> to forward (or withhold) frames.
           <code>FrameDirection</code> is the DOWNSTREAM / UPSTREAM enum used to pick which way a
@@ -573,15 +574,14 @@
         </div>
         <div class="card cat-frames">
           <div class="kicker">pipecat.frames.frames</div>
-          <h3><code>StartFrame</code>, <code>InputDTMFFrame</code>, <code>TTSSpeakFrame</code>,
-          <code>TTSUpdateSettingsFrame</code>, <code>STTUpdateSettingsFrame</code>,
-          <code>TranscriptionFrame</code>, <code>InterimTranscriptionFrame</code></h3>
-          <p>The concrete frame types the IVR gate cares about: <code>StartFrame</code> fires once
-          when the pipeline boots (used to trigger the spoken menu); <code>InputDTMFFrame</code>
-          carries a caller's phone keypress; <code>TTSSpeakFrame</code> forces a specific line to be
-          spoken immediately; <code>TTSUpdateSettingsFrame</code> / <code>STTUpdateSettingsFrame</code>
-          hot-swap the TTS/STT language mid-call; <code>TranscriptionFrame</code> /
-          <code>InterimTranscriptionFrame</code> are final and partial speech-to-text results.</p>
+          <h3><code>StartFrame</code>, <code>TranscriptionFrame</code>, <code>TTSSpeakFrame</code>,
+          <code>TTSUpdateSettingsFrame</code></h3>
+          <p>The concrete frame types the language router uses: <code>StartFrame</code> fires once
+          when the pipeline boots (used to trigger the spoken greeting);
+          <code>TranscriptionFrame</code> is a final speech-to-text result and carries the language
+          Saaras detected; <code>TTSSpeakFrame</code> forces a specific line to be spoken
+          immediately; <code>TTSUpdateSettingsFrame</code> hot-swaps the TTS language and voice
+          mid-call.</p>
         </div>
         <div class="card cat-frames">
           <div class="kicker">pipecat.frames.frames</div>
@@ -598,18 +598,19 @@
           <div class="kicker">pipecat.services.sarvam.stt</div>
           <h3><code>SarvamSTTService</code></h3>
           <p>Speech-to-text via Sarvam AI's <code>saaras:v4</code> model, tuned for Indian languages
-          and auto language detection. Configured in <code>services/stt.py</code>, re-tuned live by
-          the IVR gate once a language digit is pressed.</p>
+          and auto language detection. Configured in <code>services/stt.py</code> and left in
+          auto-detect mode for the whole call: every transcript carries the language it heard,
+          which the language router reads.</p>
         </div>
         <div class="card cat-services">
           <div class="kicker">pipecat.services.sarvam.tts</div>
           <h3><code>SarvamTTSService</code></h3>
           <p>Text-to-speech via Sarvam's <code>bulbul:v4-flash</code> model. Each v4 voice speaks one
-          language, so the voice comes from <code>languages.py</code>: <code>"aditya_hi_conversational"</code>
-          for Hindi (the default) and <code>"dev_en_conversational"</code> for English, at
-          <code>pace=1.4</code> for a brisker conversational cadence.
-          Same service class is also driven directly by the IVR gate to speak each menu line in its
-          own language.</p>
+          language, so <code>languages.py</code> holds one voice per supported language (for example
+          <code>"aditya_hi_conversational"</code> for Hindi, the default, and
+          <code>"vijay_ta_narration"</code> for Tamil), at <code>pace=1.4</code> for a brisker
+          conversational cadence. The language router switches it mid-call, and uses it to speak
+          the Hindi and English greeting lines, each in its own voice.</p>
         </div>
         <div class="card cat-services">
           <div class="kicker">pipecat.services.groq.llm</div>
@@ -643,28 +644,21 @@
           <div class="kicker">llm.register_function(...)</div>
           <h3><code>register_scheme_tool(llm)</code></h3>
           <p>Not a Pipecat import itself, but the wiring call in <code>core/tool.py</code> that binds
-          the <code>search_schemes</code> name to the <code>_handle_search</code> coroutine on the
-          <code>GroqLLMService</code> instance, so the framework knows what code to run for that
-          tool name.</p>
+          each of the six tool names (for example <code>search_schemes</code>) to its handler coroutine
+          (<code>search_schemes_handler</code>) on the <code>GroqLLMService</code> instance, so the
+          framework knows what code to run for that tool name.</p>
         </div>
       </div>
 
-      <div class="group-title">Supporting enums (used to drive the IVR gate)</div>
+      <div class="group-title">Supporting enums (used by the language router)</div>
       <div class="card-grid">
-        <div class="card cat-context">
-          <div class="kicker">pipecat.audio.dtmf.types</div>
-          <h3><code>KeypadEntry</code></h3>
-          <p>Enum for phone keypad digits (<code>ONE</code>, <code>TWO</code>, <code>THREE</code>…).
-          <code>languages.py</code> keys its language map off this enum so a raw DTMF frame can be
-          looked up directly.</p>
-        </div>
         <div class="card cat-context">
           <div class="kicker">pipecat.transcriptions.language</div>
           <h3><code>Language</code></h3>
-          <p>Enum of language codes (<code>Language.HI</code>, <code>EN</code>, <code>TA</code>) used
-          both as the TTS default and as the value baked into
-          <code>TTSUpdateSettingsFrame</code>/<code>STTUpdateSettingsFrame</code> when the IVR gate
-          locks a language.</p>
+          <p>Enum of language codes (<code>Language.HI</code>, <code>TA</code>, <code>BN</code>…).
+          Saaras puts one on every transcript (for example <code>Language.TA_IN</code>);
+          <code>languages.py</code> maps each supported language to its TTS <code>Language</code>
+          value and voice, which go into a <code>TTSUpdateSettingsFrame</code> on a switch.</p>
         </div>
       </div>
     </section>
@@ -701,7 +695,7 @@
           <h4><code>create_pipeline()</code> assembles every stage once</h4>
           <p>STT, TTS and LLM services are configured; the scheme-search tool is registered on the
           LLM; a single <code>LLMContext</code> is created with the system prompt and tool schema;
-          the <code>IVRGate</code> is built around that same context object; the
+          the <code>LanguageRouter</code> is built around that same context object; the
           <code>LLMContextAggregatorPair</code> is built with VAD-start / Smart-Turn-stop turn
           strategies; and a <code>VADProcessor</code> wraps Silero with a 0.5s stop threshold.
           All nine stages are then handed to <code>Pipeline([...])</code> in the exact order shown
@@ -716,48 +710,44 @@
           the whole duration of the call.</p>
         </div>
         <div class="step">
-          <div class="file">core/ivr.py</div>
-          <h4>The very first frame triggers the language menu</h4>
-          <p>The instant the pipeline starts, a <code>StartFrame</code> reaches <code>IVRGate</code>
-          before anything else does. It responds by pushing a <code>TTSSpeakFrame</code> for each
-          language in <code>languages.py</code>, in that language's own voice — "हिंदी के लिए एक
-          दबाएं," then "For English, press two," then the Tamil line — and starts a 6-second
-          timeout watch.</p>
+          <div class="file">core/language_router.py</div>
+          <h4>The very first frame triggers the greeting</h4>
+          <p>The instant the pipeline starts, a <code>StartFrame</code> reaches
+          <code>LanguageRouter</code> before anything else does. It speaks the greeting from
+          <code>languages.py</code> — a Hindi line in the Hindi voice, then an English line in the
+          English voice, telling the caller they can talk in their own language — then sets the
+          voice back to Hindi and adds the Hindi reply directive to the context.</p>
         </div>
       </div>
 
-      <div id="ivr" class="group-title">The IVR language gate, in detail</div>
+      <div id="router" class="group-title">The language router, in detail</div>
       <p>
-        <code>IVRGate</code> is the one fully custom <code>FrameProcessor</code> in this system, and
-        it sits deliberately between STT and the context aggregator so it can intercept transcribed
-        speech before it ever reaches the LLM. Its job is a one-time language lock, then it gets out
-        of the way for the rest of the call:
+        <code>LanguageRouter</code> is the one fully custom <code>FrameProcessor</code> in this
+        system. It sits between STT and the context aggregator, so it sees every transcript just
+        before the LLM does, and it follows the caller's language turn by turn:
       </p>
       <ul style="color:var(--text-dim); font-size:14.5px;">
-        <li style="margin-bottom:8px;"><strong>Before a language is chosen:</strong> any
-        <code>TranscriptionFrame</code> or <code>InterimTranscriptionFrame</code> is silently
-        dropped — a caller talking over the menu can't accidentally start a conversation with the
-        LLM before picking a language. <code>InputDTMFFrame</code> keypresses are handled and
-        consumed (never forwarded raw).</li>
-        <li style="margin-bottom:8px;"><strong>On a valid digit:</strong> <code>_lock()</code> runs
-        once. It (1) appends a language directive (e.g. <em>"Reply only in Hindi, in Devanagari
-        script"</em>) straight onto the shared <code>LLMContext.messages</code> — a single system
-        message, not a per-turn injection, so the LLM never has to re-detect language; (2) pushes a
+        <li style="margin-bottom:8px;"><strong>Every transcript passes through:</strong> nothing
+        is dropped or delayed. The router only reads <code>TranscriptionFrame.language</code>, which
+        Saaras fills in because STT stays in auto-detect mode for the whole call.</li>
+        <li style="margin-bottom:8px;"><strong>On a different supported language:</strong> if the
+        transcript has at least <code>MIN_WORDS_TO_SWITCH</code> (3) words, it (1) pushes a
         <code>TTSUpdateSettingsFrame</code> <em>downstream</em> to switch Sarvam TTS to that language
-        and its voice, since TTS sits
-        after this gate in the chain; and (3) pushes an <code>STTUpdateSettingsFrame</code>
-        <em>upstream</em> to retune Sarvam STT, since STT sits before this gate — this is the
-        clearest example in the codebase of why Pipecat frames need a direction at all.</li>
-        <li style="margin-bottom:8px;"><strong>On an invalid digit or silence:</strong> a retry
-        counter increments, the menu replays, and the timeout restarts — up to
-        <code>IVR_MAX_RETRIES</code> (1) time, after which it force-locks to
-        <code>DEFAULT_DIGIT</code> (Hindi) rather than stalling the call forever.</li>
-        <li><strong>Once locked:</strong> <code>self._locked</code> flips true and every frame is
-        simply passed straight through — the gate becomes a no-op for the remainder of the call.</li>
+        and its voice, since TTS sits after the router in the chain, and (2) appends that language's
+        directive (e.g. <em>"The caller is speaking Tamil. Reply only in Tamil, in Tamil
+        script."</em>) to the shared <code>LLMContext.messages</code>, just before the caller's
+        message reaches it.</li>
+        <li style="margin-bottom:8px;"><strong>On short replies:</strong> "haan", "ok" or any
+        reply under 3 words never switches. Detection on a word or two is unreliable, and the
+        prompt tells the LLM to stay in the current language.</li>
+        <li><strong>On an unsupported language:</strong> if Saaras hears a language with no
+        Bulbul v4 voice (Malayalam or Odia today), the router adds a one-time note telling the LLM
+        to apologise briefly and continue in Hindi.</li>
       </ul>
-      <p>Because <code>languages.py</code> is the single source of truth (digit → name → TTS language
-      and voice → menu line → system directive), adding a fourth language means adding one dict entry — nothing
-      else in <code>ivr.py</code>, <code>pipeline.py</code>, or the prompt needs to change.</p>
+      <p>Because <code>languages.py</code> is the single source of truth (language code → name →
+      TTS language and voice → reply directive), adding a language means adding one dict entry —
+      nothing else in <code>language_router.py</code>, <code>pipeline.py</code>, or the prompt needs
+      to change.</p>
 
       <div id="toolflow" class="group-title">The tool-call round trip</div>
       <div class="flow">
@@ -774,17 +764,21 @@
           <h4>The LLM emits a function call, Pipecat routes it</h4>
           <p>When the model decides to call <code>search_schemes</code>, <code>GroqLLMService</code>
           matches the name against what <code>register_scheme_tool(llm)</code> registered, and
-          invokes <code>_handle_search(params: FunctionCallParams)</code> with the parsed
-          <code>query</code>, <code>state</code>, and <code>government_level</code> arguments.</p>
+          invokes <code>search_schemes_handler(params: FunctionCallParams)</code> with the parsed
+          <code>query</code> (English) and, for non-English callers, <code>original_query</code>
+          (the caller's own words).</p>
         </div>
         <div class="step">
           <div class="file">core/tool.py → retrieval/retriever.py</div>
           <h4>The actual search runs off the event loop</h4>
-          <p><code>search_schemes(...)</code> does blocking network I/O against Cloudflare (for
-          embeddings), Weaviate (hybrid search) and FlashRank (reranking), so it's dispatched via
-          <code>asyncio.to_thread(...)</code> — keeping the audio pipeline's event loop free so the
+          <p><code>search_schemes(...)</code> embeds the caller's own words with Cloudflare's
+          multilingual <code>bge-m3</code>, runs one Weaviate hybrid search with that vector plus
+          BM25 on the English query, and reranks with FlashRank. That's blocking network I/O, so
+          it's dispatched via <code>asyncio.to_thread(...)</code> — keeping the audio pipeline's event loop free so the
           call doesn't stutter while the lookup runs. Results are kept short (top <code>MAX_RESULTS = 3</code> schemes, one section chunk each)
-          because everything the tool returns gets spoken aloud, not displayed.</p>
+          because everything the tool returns gets spoken aloud, not displayed. The
+          <code>check_*</code> lookups skip the embedding and search, and fetch the scheme's
+          section directly by filter.</p>
         </div>
         <div class="step">
           <div class="file">core/tool.py</div>
@@ -815,8 +809,8 @@
           <td>Hard ceiling so neither reasoning nor the answer can run long and stall the call.</td></tr>
         <tr><td><code>VADParams.stop_secs</code></td><td>0.5s</td>
           <td>How long the caller must be silent before their turn is considered finished.</td></tr>
-        <tr><td>IVR timeout / retries</td><td>6.0s / 1</td>
-          <td>Re-prompts once before defaulting the call to Hindi, so a confused caller isn't stuck forever.</td></tr>
+        <tr><td><code>MIN_WORDS_TO_SWITCH</code></td><td>3</td>
+          <td>Replies shorter than this never switch the language, since detection on a word or two is unreliable.</td></tr>
         <tr><td><code>SarvamTTSService.pace</code></td><td>1.4</td>
           <td>Slightly faster than natural speech, for a snappier conversational feel.</td></tr>
         <tr><td><code>MAX_RESULTS</code> (tool)</td><td>3</td>

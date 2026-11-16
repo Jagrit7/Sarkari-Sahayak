@@ -52,8 +52,9 @@ India runs thousands of welfare schemes, but the people who need them most often
 claim them. The information sits on text-heavy, mostly English government portals that assume
 strong reading and digital skills.
 
-**Sarkari Sahayak** takes the portal out of the picture. A caller rings an ordinary phone number,
-picks Hindi or English on the keypad, and talks. The assistant asks a few questions about their
+**Sarkari Sahayak** takes the portal out of the picture. A caller rings an ordinary phone number
+and talks in their own language: Hindi, English, Bengali, Gujarati, Kannada, Marathi, Punjabi,
+Tamil, or Telugu. The assistant asks a few questions about their
 situation, finds matching schemes, and explains one thing at a time: what the scheme gives, who
 qualifies, which documents are needed, and how to apply.
 
@@ -82,8 +83,11 @@ is instructed never to describe a scheme, amount, or rule that a retrieval tool 
 
 - **Works on any phone.** A plain voice call through Twilio and LiveKit; no smartphone, app, or
   data connection needed.
-- **Keypad language menu.** Press 1 for Hindi or 2 for English. The choice locks speech
-  recognition, the voice, and the reply language for the rest of the call.
+- **Speaks the caller's language.** No menu: speech recognition detects the language of every
+  sentence, and the bot replies in that language and script, in a voice for that language. It
+  follows the caller if they switch partway through.
+- **Language-agnostic search.** Multilingual `bge-m3` embeddings match a question in any of the
+  supported languages to the English scheme data, without translating the data.
 - **Grounded answers.** Six retrieval tools sit between the model and the data. The system prompt
   forbids answering about any specific scheme from the model's own memory.
 - **Section-aware follow-ups.** After a scheme is found, follow-up questions pull just that
@@ -107,22 +111,24 @@ flowchart TD
 
     subgraph bot ["Pipecat bot (python -m voice.main)"]
         vad["Silero VAD + turn detection"] --> stt["Sarvam STT (saaras:v4)"]
-        stt --> ivr["IVR language gate: 1 = Hindi, 2 = English"]
-        ivr --> llm["Groq LLM (openai/gpt-oss-20b)"]
-        llm --> tts["Sarvam TTS (bulbul:v4-flash)"]
+        stt -- "transcript + detected language" --> router["Language router: follows the caller's language"]
+        router --> llm["Groq LLM (openai/gpt-oss-20b)"]
+        router -.->|"voice + language"| tts
+        llm --> tts["Sarvam TTS (bulbul:v4-flash), one voice per language"]
     end
 
     tts --> lk
     llm -- "tool call" --> tools["6 scheme tools (voice/core/tool.py)"]
-    tools -- "embed query" --> cf["Cloudflare Workers AI (bge-large-en-v1.5)"]
-    tools -- "hybrid search, alpha 0.6" --> wv[("Weaviate: SarkariSchemesVoice")]
+    tools -- "caller's own words" --> cf["Cloudflare Workers AI (bge-m3, multilingual)"]
+    cf -- "vector" --> wv[("Weaviate: SarkariSchemesMultilingual")]
+    tools -- "English keywords (BM25), alpha 0.6" --> wv
     wv -- "candidates" --> rr["FlashRank rerank (ms-marco-MiniLM-L-12-v2)"]
     rr -- "top chunks" --> llm
 ```
 
 The pipeline is assembled in `voice/core/pipeline.py` in this order: LiveKit input → Silero VAD →
-Sarvam STT → IVR gate → context aggregator → Groq LLM → Sarvam TTS → LiveKit output. Tool calls
-run on a worker thread so a slow search never blocks the audio loop.
+Sarvam STT → language router → context aggregator → Groq LLM → Sarvam TTS → LiveKit output. Tool
+calls run on a worker thread so a slow search never blocks the audio loop.
 
 ---
 
@@ -130,22 +136,42 @@ run on a worker thread so a slow search never blocks the audio loop.
 
 1. **The call arrives.** Twilio hands the call to LiveKit over SIP, and LiveKit places the caller
    in the `support-room` room, where the bot is already waiting as `scheme-setu-bot`.
-2. **Language menu.** The IVR gate (`voice/core/ivr.py`) plays the menu, each line in its own
-   language. Speech is ignored until a key is pressed. Key 1 locks Hindi, key 2 locks English.
-   With no valid key after 6 seconds the menu plays once more, and after a second timeout the call
-   locks to Hindi. Locking adds a reply-language instruction to the LLM context and retunes STT
-   and TTS (language and voice). All menu settings live in `voice/core/languages.py`.
+2. **Greeting.** The bot greets the caller in Hindi and then English, each line in its own voice,
+   and says they can speak in their own language. There is no menu to wait through.
 3. **Turn-taking.** Silero VAD (0.5 s of silence) starts and ends speech segments, and Pipecat's
-   default turn-stop strategy decides when the caller has finished. Sarvam `saaras:v4` transcribes.
-4. **Thinking.** Groq's `openai/gpt-oss-20b` runs with low reasoning effort and a 512-token cap to
+   default turn-stop strategy decides when the caller has finished. Sarvam `saaras:v4` transcribes
+   and labels each sentence with the language it heard.
+4. **Following the language.** The language router (`voice/core/language_router.py`) reads that
+   label. When the caller speaks a different supported language, it switches the voice and adds a
+   reply-language instruction to the LLM context. Replies under 3 words ("haan", "ok") never
+   switch, since detection on a word or two is unreliable. A caller in an unsupported language
+   gets a short apology and Hindi. All language settings live in `voice/core/languages.py`.
+5. **Thinking.** Groq's `openai/gpt-oss-20b` runs with low reasoning effort and a 512-token cap to
    keep replies fast. The prompt (`voice/core/prompt.py`) tells it to ask about the caller's state,
-   age, and occupation before searching, to translate every tool query into English, and to work
-   the state or Central/State preference into the query text.
-5. **Looking it up.** The model calls one of six tools (next section) and answers only from what
+   age, and occupation before searching, to work the state or Central/State preference into the
+   query, and to reply in the caller's language and script.
+6. **Looking it up.** The model calls one of six tools (next section) and answers only from what
    comes back.
-6. **Speaking.** Sarvam `bulbul:v4-flash` speaks the reply at 1.4x pace. Each v4 voice speaks one
-   language, so Hindi calls use `aditya_hi_conversational` and English calls use
-   `dev_en_conversational`.
+7. **Speaking.** Sarvam `bulbul:v4-flash` speaks the reply at 1.4x pace in that language's voice
+   (each v4 voice speaks only one language; see [Languages](#languages)).
+
+### Languages
+
+| Language | Voice (`bulbul:v4-flash`) |
+| --- | --- |
+| Hindi (default) | `aditya_hi_conversational` |
+| English | `dev_en_conversational` |
+| Bengali | `arnab_bn_conversation` |
+| Gujarati | `bhavik_gu_conversation` |
+| Kannada | `chetan_kn_conversation` |
+| Marathi | `nilesh_mr_conversation` |
+| Punjabi | `anand_pa_conversation` |
+| Tamil | `vijay_ta_narration` (Bulbul v4 has no conversational Tamil voice yet) |
+| Telugu | `pooja_te_conversation` |
+
+`saaras:v4` understands more languages than this, but Bulbul v4 has no voices for Malayalam or
+Odia yet. To add a language, add one entry to `voice/core/languages.py` with a voice from
+Sarvam's v4 voice list.
 
 ---
 
@@ -162,9 +188,17 @@ The LLM sees six tools, defined in `voice/core/tool.py` and backed by `voice/ret
 | `check_documents(query, scheme_id)` | "What papers do I need?" | That scheme's `documents` section |
 | `check_application_process(query, scheme_id)` | "How do I apply?" | That scheme's `application` section |
 
-Each `check_*` tool filters Weaviate to one `scheme_id` and one `section`, takes 5 candidates,
-reranks them, and returns the best one. All searches are hybrid: a dense vector from Cloudflare's
-`bge-large-en-v1.5` combined with BM25 over `sparse_text`, at `alpha=0.6`.
+`search_schemes` runs a hybrid search with two versions of the question. The caller's own words,
+in their language (`original_query`), are embedded with Cloudflare's multilingual `bge-m3` for the
+vector half. The model's English translation (`query`) drives BM25 over the English `sparse_text`
+keywords and the reranker. Weaviate combines the two at `alpha=0.6` (`ALPHA` in `retriever.py`).
+Keeping an English copy lets exact scheme names and acronyms still match by keyword, and a weak
+translation only affects the keyword half.
+
+Each `check_*` tool fetches one `scheme_id`'s `section` directly by filter, with no embedding call
+or search. All but 10 of the 16,780 scheme sections are a single chunk, so there is nothing to
+rank; the reranker only runs when a section has more than one. See
+[`docs/decision-log.md`](docs/decision-log.md).
 
 The retriever functions also accept a `government_level` filter (`Central` / `State`). The voice
 tools don't expose it; the model puts that preference in the query text instead. The retrieval
@@ -184,12 +218,13 @@ eval does use the filter.
 | Load | `voice/retrieval/loader.py` | CSV → LangChain Documents |
 | Embed and store | `voice/retrieval/ingest.py` | Embeds and upserts in batches of 200, retries on HTTP 429, resumes from a checkpoint |
 
-Each row becomes one Weaviate object in the `SarkariSchemesVoice` collection:
+Each row becomes one Weaviate object in the `SarkariSchemesMultilingual` collection, with a
+`bge-m3` vector of its `document_text`:
 
 | Field | Role |
 | --- | --- |
 | `document_text` | Scheme name plus section prose. This is what the LLM reads. |
-| `sparse_text` | Normalized keywords. This is what BM25 matches on. |
+| `sparse_text` | Normalized English keywords. This is what BM25 matches on, using the English `query`. |
 | `scheme_id`, `scheme_name` | Identity, repeated on all five rows of a scheme |
 | `section` | `details` / `benefits` / `eligibility` / `documents` / `application`, used by the `check_*` filters |
 | `government_level` | `Central` / `State` |
@@ -202,10 +237,10 @@ Each row becomes one Weaviate object in the `SarkariSchemesVoice` collection:
 | --- | --- |
 | Telephony | Twilio (phone number) → LiveKit Cloud (SIP bridge, real-time audio room) |
 | Voice orchestration | Pipecat, Silero VAD, Pipecat turn detection |
-| Speech | Sarvam AI: `saaras:v4` (STT), `bulbul:v4-flash` (TTS) |
+| Speech | Sarvam AI: `saaras:v4` (STT, auto language detection), `bulbul:v4-flash` (TTS, one voice per language) |
 | LLM | Groq: `openai/gpt-oss-20b`, low reasoning effort |
-| Embeddings | Cloudflare Workers AI: `@cf/baai/bge-large-en-v1.5` |
-| Vector store | Weaviate (self-hosted in Docker), hybrid dense + BM25 |
+| Embeddings | Cloudflare Workers AI: `@cf/baai/bge-m3` (multilingual, 100+ languages) |
+| Vector store | Weaviate (self-hosted in Docker), hybrid dense (caller's words) + BM25 (English keywords) |
 | Reranker | FlashRank: `ms-marco-MiniLM-L-12-v2` |
 | Data pipeline | pandas, LangChain (`CSVLoader`, `langchain-weaviate`, `langchain-cloudflare`) |
 | Data source | myScheme (Government of India) |
@@ -273,18 +308,21 @@ The named volume keeps the data between restarts, so you only ingest once.
 
 ### 5. Ingest the scheme data
 
-The ingest reads `data/schemes_compact_cleaned_merged_chunked.csv` and keeps its checkpoint in
-`data/ingest_progress.txt`. To use a different folder, such as a mounted volume in a container,
-set `DATA_DIR`.
+The ingest reads `data/schemes_compact_cleaned_merged_chunked.csv`, embeds every chunk with
+`bge-m3`, and writes them to the `SarkariSchemesMultilingual` collection. Its checkpoint lives in
+`data/ingest_progress_SarkariSchemesMultilingual.txt` (one file per collection, ignored by git).
+To use a different folder, such as a mounted volume in a container, set `DATA_DIR`.
 
 ```bash
-python -m voice.retrieval.ingest --reset-progress
+python -m voice.retrieval.ingest
 ```
 
-Use `--reset-progress` the first time. The committed `data/ingest_progress.txt` already reads
-`16795` from the team's own run, so without the flag the script assumes everything is ingested and
-does nothing. If a run stops partway, for example on Cloudflare rate limits, rerun it without the
-flag and it resumes from the last finished batch.
+If a run stops partway, for example on Cloudflare rate limits, rerun the same command and it
+resumes from the last finished batch. `--reset-progress` starts over from the first chunk.
+
+If you ingested before the switch to `bge-m3`, the old `SarkariSchemesVoice` collection is left
+untouched in Weaviate. Rolling back only means changing `INDEX_NAME` in
+`voice/retrieval/vectorstore.py` and the embedding model in `voice/retrieval/embeddings.py`.
 
 ### 6. Run the voice agent
 
@@ -302,8 +340,8 @@ python -m voice.generate_token
 ```
 
 This prints a join token for `support-room`. Open [LiveKit Meet](https://meet.livekit.io), choose
-the **Custom** tab, and paste your `LIVEKIT_URL` and the token. A browser can't send keypad tones,
-so the language menu times out twice and the call locks to Hindi after about 12 seconds.
+the **Custom** tab, and paste your `LIVEKIT_URL` and the token. After the greeting, speak in any
+supported language and the bot answers in it.
 
 `python -m voice.voice_server` is an alternative entry point: a FastAPI app on port 8000 with
 `GET /token`, `GET /health`, and a `/ws` WebSocket that starts a bot for as long as the socket
@@ -343,7 +381,9 @@ Set these in `voice/.env`:
 
 Retrieval is scored against a 10-query golden set (`voice/eval/retrieval-evals/golden_eval_set.jsonl`)
 that covers scholarships, pensions, fisheries, farming, and more, with both exact and paraphrased
-wording. Results from the committed run (`eval_results.json`, k = 3, alpha 0.6, 15 candidates):
+wording. Results from the committed English run (`eval_results.json`, k = 3, alpha 0.6, 15
+candidates). This baseline was measured with the earlier English-only `bge-large-en-v1.5`
+embeddings, before the move to `bge-m3`:
 
 | Precision@3 | Recall@3 | MRR | NDCG@3 |
 | --- | --- | --- | --- |
@@ -362,11 +402,34 @@ correct schemes, so with k = 3 the best possible average is 0.67.
 Reranking is the largest fixed cost. One query hit a one-off 5.8 s embedding spike, which pulls
 the mean total up to 2.35 s.
 
-To rerun, make sure Weaviate is running with data ingested, then run from the repository root.
-The script reads the golden set and writes `eval_results.json` next to itself:
+### Multilingual eval
+
+Each golden query also has a translation into every non-English language the bot speaks.
+Generate them once with Sarvam's translate API (needs `SARVAM_API_KEY`), then have a native
+speaker check them. Reruns keep existing translations, so corrections survive.
 
 ```bash
-PYTHONPATH=. python voice/eval/retrieval-evals/evaluate_retrieval.py
+PYTHONPATH=. python voice/eval/retrieval-evals/translate_golden_set.py
+```
+
+With Weaviate running and the data ingested, run from the repository root. Each run is written to
+`voice/eval/retrieval-evals/results/`.
+
+```bash
+PYTHONPATH=. python voice/eval/retrieval-evals/evaluate_retrieval.py --lang ta
+```
+
+`--mode english` (the default) matches production: the Tamil query feeds the vector search and the
+English query feeds keyword search and the reranker. `--mode native` uses only the Tamil query, as
+a stress test of search with no translation at all. `--alpha` overrides the hybrid weight.
+
+To tune the weight, `--sweep` runs every language and mode at alpha 0.5, 0.6, 0.7 and 0.8, then
+reports the alpha with the best mean MRR in `english` mode. Set `ALPHA` in
+`voice/retrieval/retriever.py` to that value, and record it in
+[`docs/decision-log.md`](docs/decision-log.md).
+
+```bash
+PYTHONPATH=. python voice/eval/retrieval-evals/evaluate_retrieval.py --sweep
 ```
 
 ---
@@ -402,8 +465,8 @@ Sarkari-Sahayak/
 │   ├── core/
 │   │   ├── pipeline.py                     # Assembles the Pipecat pipeline
 │   │   ├── transport.py                    # LiveKit transport and bot token
-│   │   ├── ivr.py                          # Keypad language gate
-│   │   ├── languages.py                    # Language menu: digits, voices, prompts
+│   │   ├── language_router.py              # Follows the caller's language, switches the voice
+│   │   ├── languages.py                    # Supported languages, voices, greeting, directives
 │   │   ├── prompt.py                       # System prompt
 │   │   ├── tool.py                         # The 6 tool schemas and their handlers
 │   │   └── config.py                       # Loads and checks environment variables
@@ -413,19 +476,18 @@ Sarkari-Sahayak/
 │   │   └── llm.py                          # Groq gpt-oss-20b
 │   ├── retrieval/
 │   │   ├── loader.py                       # CSV -> LangChain Documents
-│   │   ├── embeddings.py                   # Cloudflare Workers AI embeddings
+│   │   ├── embeddings.py                   # Cloudflare Workers AI embeddings (bge-m3)
 │   │   ├── vectorstore.py                  # Weaviate connection
 │   │   ├── reranker.py                     # FlashRank
 │   │   ├── retriever.py                    # search_schemes and the 5 section lookups
 │   │   └── ingest.py                       # Batched, resumable embed + upsert
-│   ├── eval/retrieval-evals/               # Golden set, eval script, latest results
+│   ├── eval/retrieval-evals/               # Golden set + translations, eval and translate scripts, results
 │   ├── to-be-fixed*.pdf                    # Engineering backlog
 │   └── sarkari-sahayak-voice-architecture.html   # Walkthrough page
 ├── data/
 │   ├── updated_data.csv                    # Raw myScheme export
 │   ├── compact_data_cleaning_chunked_sections.ipynb   # Cleaning and chunking notebook
-│   ├── schemes_compact_cleaned_merged_chunked.csv     # 16,795 section chunks, ready to ingest
-│   └── ingest_progress.txt                 # Ingest resume checkpoint
+│   └── schemes_compact_cleaned_merged_chunked.csv     # 16,795 section chunks, ready to ingest
 ├── frontend/                               # Web chat UI (see Web Chat)
 ├── chatbot/                                # Earlier chat backends (not currently runnable)
 ├── docs/                                   # Architecture (.dot source) and schema diagrams
@@ -454,12 +516,17 @@ Most of these come from the team's backlog in `voice/to-be-fixed*.pdf`.
 
 - **One shared room.** Every caller joins `support-room`. Two people calling at once would end up
   in the same conversation, so this must change before the line handles more than one caller.
-- **Language testing.** Keypad selection has only been exercised through the browser timeout path,
-  not with real phone tones. Only Hindi has been tested end to end, and `saaras:v4` and the
-  `bulbul:v4-flash` voices haven't been tried on a live call yet.
+- **Language testing.** The language router and the multilingual search have been tested offline
+  only. No language has had a live call since the switch, the voices need a listening check by
+  native speakers, and the multilingual eval needs its translations generated and checked.
+- **Language coverage.** Bulbul v4 has no Malayalam or Odia voices, so those callers are answered
+  in Hindi. Tamil uses a narration-style voice because there is no conversational one yet.
+  Answers in the less common languages depend on how well `gpt-oss-20b` writes them, which
+  hasn't been checked.
 - **Open token endpoint.** `GET /token` in `voice_server.py` has no auth and always issues the same
   identity.
-- **Latency.** Each tool call spends about 1.8 s on retrieval, about 1.1 s of it in reranking.
+- **Latency.** Each `search_schemes` call spent about 1.8 s on retrieval in the last measurement,
+  about 1.1 s of it in reranking. The `check_*` lookups no longer embed or rerank.
 - **No memory across calls**, and the scheme data is a one-time snapshot with no refresh job.
 - **No monitoring** beyond terminal logs.
 - **Web chat backend** doesn't run (see [Web Chat](#web-chat-in-progress)).
@@ -467,7 +534,8 @@ Most of these come from the team's backlog in `voice/to-be-fixed*.pdf`.
 **Roadmap**
 
 - A separate LiveKit room per call, through SIP dispatch rules or generated room names.
-- Real phone testing of the keypad menu, then more languages. Adding one only means a new entry in
+- Live test calls in every language, then tune `ALPHA` with the multilingual eval.
+- Malayalam and Odia once Sarvam adds v4 voices. Adding a language only means a new entry in
   `voice/core/languages.py`.
 - Faster reranking with a smaller cross-encoder (such as `ms-marco-TinyBERT-L-2-v2`) or fewer
   candidates.
