@@ -12,7 +12,7 @@ from pipecat.processors.aggregators.llm_context import LLMContext
 from voice.services.tts import configure_tts
 from voice.services.stt import configure_stt
 from voice.services.llm import configure_llm
-from voice.core.ivr import IVRGate
+from voice.core.language_router import LanguageRouter
 from voice.core.prompt import SYSTEM_PROMPT
 from voice.core.tool import register_scheme_tool, SCHEME_TOOLS
 
@@ -29,7 +29,7 @@ async def create_pipeline(transport: LiveKitTransport) -> tuple[WorkerRunner, Pi
 
     context = LLMContext(messages=initial_messages, tools=SCHEME_TOOLS)
 
-    ivr = IVRGate(context)
+    language_router = LanguageRouter(context)
 
     context_aggregator = LLMContextAggregatorPair(
         context=context,
@@ -50,7 +50,8 @@ async def create_pipeline(transport: LiveKitTransport) -> tuple[WorkerRunner, Pi
         transport.input(), # Receives user audio
         vad_processor, # Bytes are chunked into sentences
         stt,
-        ivr,
+        language_router, # Follows the caller's language, retunes TTS
+
         context_aggregator.user(),
         llm, # LLM reads memory, generates reply
         tts, # TTS turns text reply into audio bytes
