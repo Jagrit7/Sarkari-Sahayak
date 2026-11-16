@@ -429,6 +429,7 @@ Sarkari-Sahayak/
 ├── frontend/                               # Web chat UI (see Web Chat)
 ├── chatbot/                                # Earlier chat backends (not currently runnable)
 ├── docs/                                   # Architecture (.dot source) and schema diagrams
+│   └── decision-log.md                     # Dated record of design decisions and why
 └── LICENSE
 ```
 
