@@ -1,14 +1,18 @@
 from langchain_core.documents import Document
 from weaviate.classes.query import Filter
+from voice.retrieval.embeddings import embeddings
 from voice.retrieval.vectorstore import INDEX_NAME, TEXT_KEY, get_vectorstore
 from voice.retrieval.reranker import rerank
 import time
+
+ALPHA = 0.6  # hybrid weight: 1.0 = vector only, 0.0 = keywords only; re-tune with the multilingual eval
 
 vectorstore = get_vectorstore()
 collection = vectorstore._client.collections.get(INDEX_NAME)
 
 
-def search_schemes(query, k=3, candidate_k=15, government_level=None, return_latency=False):
+def search_schemes(query, k=3, candidate_k=15, government_level=None, return_latency=False,
+                   original_query=None, alpha=ALPHA):
     filters = (
         Filter.by_property("government_level").equal(government_level)
         if government_level
@@ -16,10 +20,14 @@ def search_schemes(query, k=3, candidate_k=15, government_level=None, return_lat
     )
 
     t0 = time.perf_counter()
+    # the vector half embeds the caller's own words (bge-m3 is multilingual); the keyword
+    # half and the reranker use the English query, because sparse_text is English keywords
+    vector = embeddings.embed_query(original_query or query)
     candidates = vectorstore.similarity_search(
         query,
+        vector=vector,
         k=candidate_k,
-        alpha=0.6,
+        alpha=alpha,
         filters=filters,
         query_properties=["sparse_text"],
     )

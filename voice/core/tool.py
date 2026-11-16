@@ -46,6 +46,15 @@ search_schemes_schema = FunctionSchema(
                 "'housing assistance schemes for a low-income family in Bihar'."
             ),
         },
+        "original_query": {
+            "type": "string",
+            "description": (
+                "The caller's request exactly as they said it, in their own language "
+                "and script (for example Hindi, Tamil or Bengali). Do not translate "
+                "this one; it is matched against the schemes by meaning, in any "
+                "language. Leave it out if the caller spoke English."
+            ),
+        },
     },
     required=["query"],
 )
@@ -264,7 +273,8 @@ def _format_section(docs):
 
 async def search_schemes_handler(params: FunctionCallParams):
     query = params.arguments["query"]
-    docs = await asyncio.to_thread(search_schemes, query, MAX_RESULTS)
+    original_query = params.arguments.get("original_query")
+    docs = await asyncio.to_thread(search_schemes, query, MAX_RESULTS, original_query=original_query)
     await params.result_callback(_format(docs))
 
 
