@@ -1,9 +1,11 @@
+from langchain_core.documents import Document
 from weaviate.classes.query import Filter
-from voice.retrieval.vectorstore import get_vectorstore
+from voice.retrieval.vectorstore import INDEX_NAME, TEXT_KEY, get_vectorstore
 from voice.retrieval.reranker import rerank
 import time
 
 vectorstore = get_vectorstore()
+collection = vectorstore._client.collections.get(INDEX_NAME)
 
 
 def search_schemes(query, k=3, candidate_k=15, government_level=None, return_latency=False):
@@ -51,27 +53,29 @@ def search_schemes(query, k=3, candidate_k=15, government_level=None, return_lat
     return docs, latency
 
 
-def check_eligibility(query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
-    filters = (
+def _to_document(obj):
+    props = dict(obj.properties)
+    text = props.pop(TEXT_KEY)
+    return Document(page_content=text, metadata=props)
 
-            Filter.by_property("scheme_id").equal(scheme_id)
-            & Filter.by_property("section").equal("eligibility")
+
+def _check_section(section, query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
+    filters = (
+        Filter.by_property("scheme_id").equal(scheme_id)
+        & Filter.by_property("section").equal(section)
     )
 
     if government_level is not None:
         filters &= Filter.by_property("government_level").equal(government_level)
 
     t0 = time.perf_counter()
-    candidates = vectorstore.similarity_search(
-        query,
-        k=candidate_k,
-        alpha=0.6,
-        filters=filters,
-        query_properties=["sparse_text"],
-    )
-
+    # all but 10 scheme sections are a single chunk, so fetch by filter instead of
+    # searching: no embedding call, and nothing to rank (see docs/decision-log.md)
+    result = collection.query.fetch_objects(filters=filters, limit=candidate_k)
+    candidates = [_to_document(obj) for obj in result.objects]
     t1 = time.perf_counter()
-    docs = rerank(query, candidates, top_k=k) if candidates else []
+    # only rerank when there's actually more than one chunk to choose from
+    docs = rerank(query, candidates, top_k=k) if len(candidates) > 1 else candidates[:k]
     t2 = time.perf_counter()
 
     if not return_latency:
@@ -83,132 +87,23 @@ def check_eligibility(query, scheme_id, candidate_k=5, k=1, government_level=Non
         "total_ms": (t2 - t0) * 1000,
     }
     return docs, latency
+
+
+def check_eligibility(query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
+    return _check_section("eligibility", query, scheme_id, candidate_k, k, government_level, return_latency)
 
 
 def check_documents(query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
-    filters = (
-            Filter.by_property("scheme_id").equal(scheme_id)
-            & Filter.by_property("section").equal("documents")
-    )
+    return _check_section("documents", query, scheme_id, candidate_k, k, government_level, return_latency)
 
-    if government_level is not None:
-        filters &= Filter.by_property("government_level").equal(government_level)
-
-    t0 = time.perf_counter()
-    candidates = vectorstore.similarity_search(
-        query,
-        k=candidate_k,
-        alpha=0.6,
-        filters=filters,
-        query_properties=["sparse_text"],
-    )
-
-    t1 = time.perf_counter()
-    docs = rerank(query, candidates, top_k=k) if candidates else []
-    t2 = time.perf_counter()
-
-    if not return_latency:
-        return docs
-
-    latency = {
-        "embed_and_search_ms": (t1 - t0) * 1000,
-        "rerank_ms": (t2 - t1) * 1000,
-        "total_ms": (t2 - t0) * 1000,
-    }
-    return docs, latency
 
 def check_benefits(query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
-    filters = (
-            Filter.by_property("scheme_id").equal(scheme_id)
-            & Filter.by_property("section").equal("benefits")
-    )
+    return _check_section("benefits", query, scheme_id, candidate_k, k, government_level, return_latency)
 
-    if government_level is not None:
-        filters &= Filter.by_property("government_level").equal(government_level)
-
-    t0 = time.perf_counter()
-    candidates = vectorstore.similarity_search(
-        query,
-        k=candidate_k,
-        alpha=0.6,
-        filters=filters,
-        query_properties=["sparse_text"],
-    )
-
-    t1 = time.perf_counter()
-    docs = rerank(query, candidates, top_k=k) if candidates else []
-    t2 = time.perf_counter()
-
-    if not return_latency:
-        return docs
-
-    latency = {
-        "embed_and_search_ms": (t1 - t0) * 1000,
-        "rerank_ms": (t2 - t1) * 1000,
-        "total_ms": (t2 - t0) * 1000,
-    }
-    return docs, latency
 
 def check_application_process(query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
-    filters = (
-            Filter.by_property("scheme_id").equal(scheme_id)
-            & Filter.by_property("section").equal("application")
-    )
+    return _check_section("application", query, scheme_id, candidate_k, k, government_level, return_latency)
 
-    if government_level is not None:
-        filters &= Filter.by_property("government_level").equal(government_level)
-
-    t0 = time.perf_counter()
-    candidates = vectorstore.similarity_search(
-        query,
-        k=candidate_k,
-        alpha=0.6,
-        filters=filters,
-        query_properties=["sparse_text"],
-    )
-
-    t1 = time.perf_counter()
-    docs = rerank(query, candidates, top_k=k) if candidates else []
-    t2 = time.perf_counter()
-
-    if not return_latency:
-        return docs
-
-    latency = {
-        "embed_and_search_ms": (t1 - t0) * 1000,
-        "rerank_ms": (t2 - t1) * 1000,
-        "total_ms": (t2 - t0) * 1000,
-    }
-    return docs, latency
 
 def check_scheme_details(query, scheme_id, candidate_k=5, k=1, government_level=None, return_latency=False):
-    filters = (
-            Filter.by_property("scheme_id").equal(scheme_id)
-            & Filter.by_property("section").equal("details")
-    )
-
-    if government_level is not None:
-        filters &= Filter.by_property("government_level").equal(government_level)
-
-    t0 = time.perf_counter()
-    candidates = vectorstore.similarity_search(
-        query,
-        k=candidate_k,
-        alpha=0.6,
-        filters=filters,
-        query_properties=["sparse_text"],
-    )
-
-    t1 = time.perf_counter()
-    docs = rerank(query, candidates, top_k=k) if candidates else []
-    t2 = time.perf_counter()
-
-    if not return_latency:
-        return docs
-
-    latency = {
-        "embed_and_search_ms": (t1 - t0) * 1000,
-        "rerank_ms": (t2 - t1) * 1000,
-        "total_ms": (t2 - t0) * 1000,
-    }
-    return docs, latency
+    return _check_section("details", query, scheme_id, candidate_k, k, government_level, return_latency)
