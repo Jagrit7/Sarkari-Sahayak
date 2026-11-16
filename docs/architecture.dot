@@ -8,35 +8,38 @@ digraph architecture {
     edge  [fontname="Helvetica", fontsize=9, color="#666666", fontcolor="#444444", arrowsize=0.7];
 
     // users and transport
-    caller  [fillcolor="#f2f0ea", label=<<b><font point-size="12">Phone caller</font></b><br/>any phone · Hindi or English>];
+    caller  [fillcolor="#f2f0ea", label=<<b><font point-size="12">Phone caller</font></b><br/>any phone · speaks any of 9 Indian languages>];
     twilio  [fillcolor="#dff1fb", label=<<b><font point-size="12">Twilio</font></b><br/>phone number · turns call into SIP>];
     livekit [fillcolor="#dff1fb", label=<<b><font point-size="12">LiveKit Cloud</font></b><br/>real-time audio room support-room · SIP bridge>];
 
     // the Pipecat pipeline (voice/core/pipeline.py), in order
     input   [fillcolor="#e6e3fb", label=<<b><font point-size="12">transport.input()</font></b><br/>caller audio into the pipeline>];
     vad     [fillcolor="#e6e3fb", label=<<b><font point-size="12">VAD + Smart Turn</font></b><br/>Silero VAD, 0.5 s stop · detects end of turn>];
-    stt     [fillcolor="#fdeccb", label=<<b><font point-size="12">Sarvam STT (saaras:v4)</font></b><br/>speech to text, Indic ASR>];
-    ivr     [fillcolor="#e6e3fb", label=<<b><font point-size="12">IVRGate</font></b><br/>keypad menu: 1 = Hindi · 2 = English, each line in its own voice<br/>locks STT + TTS language and voice · defaults to Hindi>];
+    stt     [fillcolor="#fdeccb", label=<<b><font point-size="12">Sarvam STT (saaras:v4)</font></b><br/>speech to text · labels every sentence with its language>];
+    router  [fillcolor="#e6e3fb", label=<<b><font point-size="12">Language router</font></b><br/>greets in Hindi + English · follows the caller's language<br/>switches the TTS voice · adds a reply-language note (3+ words to switch)>];
     ctx     [fillcolor="#e6e3fb", label=<<b><font point-size="12">context aggregator</font></b><br/>assembles the turn · holds history>];
-    llm     [fillcolor="#fdeccb", label=<<b><font point-size="12">Groq LLM — gpt-oss-20b</font></b><br/>low reasoning effort · translates tool queries to English<br/>replies in the caller's chosen language>];
-    tts     [fillcolor="#fdeccb", label=<<b><font point-size="12">Sarvam TTS (bulbul:v4-flash)</font></b><br/>text reply → speech, 1.4x pace<br/>aditya_hi_conversational · dev_en_conversational>];
+    llm     [fillcolor="#fdeccb", label=<<b><font point-size="12">Groq LLM — gpt-oss-20b</font></b><br/>low reasoning effort · replies in the caller's language and script<br/>searches with an English query + the caller's own words>];
+    tts     [fillcolor="#fdeccb", label=<<b><font point-size="12">Sarvam TTS (bulbul:v4-flash)</font></b><br/>text reply → speech, 1.4x pace<br/>one voice per language>];
     output  [fillcolor="#e6e3fb", label=<<b><font point-size="12">transport.output()</font></b><br/>bot audio back to caller>];
 
     // tools and retrieval (voice/core/tool.py, voice/retrieval/)
     tools    [fillcolor="#e6e3fb", label=<<b><font point-size="12">6 scheme tools</font></b><br/>search_schemes · check_eligibility · check_documents<br/>check_benefits · check_application_process · check_scheme_details>];
-    embed    [fillcolor="#e2f3d9", label=<<b><font point-size="12">Cloudflare Workers AI</font></b><br/>bge-large-en-v1.5 · embed question → dense vector>];
-    weaviate [fillcolor="#e2f3d9", label=<<b><font point-size="12">Weaviate (self-hosted, Docker)</font></b><br/>hybrid dense + BM25 search, alpha 0.6>];
+    embed    [fillcolor="#e2f3d9", label=<<b><font point-size="12">Cloudflare Workers AI</font></b><br/>bge-m3 (multilingual) · caller's own words → vector>];
+    weaviate [fillcolor="#e2f3d9", label=<<b><font point-size="12">Weaviate (self-hosted, Docker)</font></b><br/>hybrid: bge-m3 vector + BM25 on English keywords, alpha 0.6<br/>check_* tools fetch a section by filter>];
     rerank   [fillcolor="#e2f3d9", label=<<b><font point-size="12">FlashRank reranker</font></b><br/>ms-marco-MiniLM-L-12-v2 · reranks full candidate pool>];
-    chunks   [fillcolor="#e2f3d9", label=<<b><font point-size="12">16,795 section-chunks</font></b><br/>3,356 schemes · collection SarkariSchemesVoice>];
+    chunks   [fillcolor="#e2f3d9", label=<<b><font point-size="12">16,795 section-chunks</font></b><br/>3,356 schemes · collection SarkariSchemesMultilingual>];
 
-    caller -> twilio -> livekit -> input -> vad -> stt -> ivr -> ctx -> llm;
+    caller -> twilio -> livekit -> input -> vad -> stt;
+    stt -> router [label=" transcript + language"];
+    router -> ctx -> llm;
     llm -> tts [label=" reply text"];
     tts -> output;
     output -> livekit [label=" reply audio", color="#b5442f", fontcolor="#b5442f"];
 
-    llm -> tools [label=" tool call\n (English query)"];
-    tools -> embed [label=" query"];
-    embed -> weaviate [label=" dense vector"];
+    llm -> tools [label=" tool call"];
+    tools -> embed [label=" caller's own words"];
+    embed -> weaviate [label=" vector"];
+    tools -> weaviate [label=" English keywords"];
     weaviate -> rerank [label=" candidate chunks"];
     weaviate -> chunks [label=" stores", style=dashed, arrowhead=none];
     rerank -> tools [label=" top chunks", color="#2f7d32", fontcolor="#2f7d32"];

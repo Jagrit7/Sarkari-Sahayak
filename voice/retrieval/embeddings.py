@@ -10,5 +10,5 @@ cloudflare_api_token = os.getenv("CLOUDFLARE_API_TOKEN")
 embeddings = CloudflareWorkersAIEmbeddings(
     account_id=cloudflare_account_id,
     api_token=cloudflare_api_token,
-    model_name="@cf/baai/bge-large-en-v1.5",
+    model_name="@cf/baai/bge-m3",  # multilingual: a Tamil question lands near the English passage it matches
 )

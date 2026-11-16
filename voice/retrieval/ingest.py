@@ -4,7 +4,7 @@ import time
 import requests
 
 from voice.retrieval.loader import DATA_DIR, load_files
-from voice.retrieval.vectorstore import get_vectorstore
+from voice.retrieval.vectorstore import INDEX_NAME, get_vectorstore
 
 # add_documents() embeds THEN upserts — for the whole list at once, that means
 # nothing lands in Weaviate until every embedding call succeeds. Chunking bounds
@@ -12,7 +12,9 @@ from voice.retrieval.vectorstore import get_vectorstore
 CHUNK_SIZE = 200
 MAX_RETRIES = 5
 INITIAL_BACKOFF_SECS = 30
-PROGRESS_FILE = DATA_DIR / "ingest_progress.txt"  # in a container, DATA_DIR must be a mounted volume to survive `--rm`
+# one checkpoint per collection, so ingesting a new collection never trips over an old run's count;
+# in a container, DATA_DIR must be a mounted volume to survive `--rm`
+PROGRESS_FILE = DATA_DIR / f"ingest_progress_{INDEX_NAME}.txt"
 
 
 def _load_progress():

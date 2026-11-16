@@ -32,10 +32,13 @@ Thumbs.db
 
 # ───────────── Project-specific ─────────────
 # gitignore has no inline comments, so each comment sits on its own line.
-# The CSVs and data/ingest_progress.txt are committed on purpose: ingest needs them.
+# The CSVs are committed on purpose: ingest needs them.
 
 # intermediate ingest file
 data/*.jsonl
+
+# per-collection ingest checkpoints — local resume state, not source
+data/ingest_progress_*.txt
 
 # demo video — host on Drive/YouTube, don't bloat the repo
 *.mp4

@@ -103,7 +103,7 @@
 <title>ingest</title>
 <path fill="#e6e3fb" stroke="black" d="M782,-436C782,-436 456,-436 456,-436 450,-436 444,-430 444,-424 444,-424 444,-408 444,-408 444,-402 450,-396 456,-396 456,-396 782,-396 782,-396 788,-396 794,-402 794,-408 794,-408 794,-424 794,-424 794,-430 788,-436 782,-436"/>
 <text text-anchor="start" x="537" y="-423.4" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="12.00">voice/retrieval/ingest.py</text>
-<text text-anchor="start" x="452" y="-413" font-family="Helvetica,sans-Serif" font-size="10.00">chunked upsert (200 docs/batch) · resumable via ingest_progress.txt</text>
+<text text-anchor="start" x="452" y="-413" font-family="Helvetica,sans-Serif" font-size="10.00">chunked upsert (200 docs/batch) · resumable via a checkpoint file</text>
 <text text-anchor="start" x="539.5" y="-403" font-family="Helvetica,sans-Serif" font-size="10.00">retries on HTTP 429 with backoff</text>
 </g>
 <!-- loader&#45;&gt;ingest -->
@@ -117,7 +117,7 @@
 <title>embed</title>
 <path fill="#e2f3d9" stroke="black" d="M600,-349C600,-349 368,-349 368,-349 362,-349 356,-343 356,-337 356,-337 356,-321 356,-321 356,-315 362,-309 368,-309 368,-309 600,-309 600,-309 606,-309 612,-315 612,-321 612,-321 612,-337 612,-337 612,-343 606,-349 600,-349"/>
 <text text-anchor="start" x="410" y="-336.4" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="12.00">Cloudflare Workers AI</text>
-<text text-anchor="start" x="417.5" y="-326" font-family="Helvetica,sans-Serif" font-size="10.00">@cf/baai/bge&#45;large&#45;en&#45;v1.5</text>
+<text text-anchor="start" x="417.5" y="-326" font-family="Helvetica,sans-Serif" font-size="10.00">@cf/baai/bge-m3 (multilingual)</text>
 <text text-anchor="start" x="364" y="-316" font-family="Helvetica,sans-Serif" font-size="10.00">1 embedding call per section row → dense vector</text>
 </g>
 <!-- ingest&#45;&gt;embed -->
@@ -146,7 +146,7 @@
 <title>stored</title>
 <path fill="#0d3b2e" stroke="black" d="M835.5,-272C835.5,-272 402.5,-272 402.5,-272 396.5,-272 390.5,-266 390.5,-260 390.5,-260 390.5,-248 390.5,-248 390.5,-242 396.5,-236 402.5,-236 402.5,-236 835.5,-236 835.5,-236 841.5,-236 847.5,-242 847.5,-248 847.5,-248 847.5,-260 847.5,-260 847.5,-266 841.5,-272 835.5,-272"/>
 <text text-anchor="start" x="481.5" y="-256.4" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="12.00" fill="white">Stage 3 · Stored as one Weaviate object</text>
-<text text-anchor="start" x="398.5" y="-246" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">class: SarkariSchemesVoice · one object per section&#45;chunk (chunked, not one&#45;per&#45;scheme)</text>
+<text text-anchor="start" x="398.5" y="-246" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">class: SarkariSchemesMultilingual · one object per section-chunk</text>
 </g>
 <!-- embed&#45;&gt;stored -->
 <g id="edge8" class="edge">
@@ -177,7 +177,7 @@
 <polygon fill="none" stroke="#7f7f7f" points="154,-112.5 154,-139.5 328,-139.5 328,-112.5 154,-112.5"/>
 <text text-anchor="start" x="221.5" y="-122.9" font-family="Helvetica,sans-Serif" font-size="12.00">vector</text>
 <polygon fill="none" stroke="#7f7f7f" points="328,-112.5 328,-139.5 622,-139.5 622,-112.5 328,-112.5"/>
-<text text-anchor="start" x="364.5" y="-122.9" font-family="Helvetica,sans-Serif" font-size="12.00">dense embedding, bge&#45;large&#45;en&#45;v1.5</text>
+<text text-anchor="start" x="364.5" y="-122.9" font-family="Helvetica,sans-Serif" font-size="12.00">dense embedding, bge-m3 (multilingual)</text>
 <polygon fill="none" stroke="#7f7f7f" points="154,-85.5 154,-112.5 328,-112.5 328,-85.5 154,-85.5"/>
 <text text-anchor="start" x="161" y="-95.9" font-family="Helvetica,sans-Serif" font-size="12.00">scheme_id, scheme_name</text>
 <polygon fill="none" stroke="#7f7f7f" points="328,-85.5 328,-112.5 622,-112.5 622,-85.5 328,-85.5"/>

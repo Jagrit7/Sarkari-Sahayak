@@ -3,7 +3,9 @@ import weaviate
 from langchain_weaviate.vectorstores import WeaviateVectorStore
 from voice.retrieval.embeddings import embeddings
 
-INDEX_NAME = "SarkariSchemesVoice"
+# bge-m3 vectors; the older bge-large-en-v1.5 collection, "SarkariSchemesVoice",
+# is left in Weaviate untouched so you can roll back by switching this name
+INDEX_NAME = "SarkariSchemesMultilingual"
 TEXT_KEY = "document_text"
 FILTER_PROPERTIES = [
     "scheme_id",
