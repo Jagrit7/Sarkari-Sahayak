@@ -36,6 +36,11 @@ from pipecat.services.sarvam.stt import SarvamSTTService
 from voice.core.languages import LANGUAGES, DEFAULT_DIGIT, IVR_TIMEOUT_SECONDS, IVR_MAX_RETRIES
 
 
+def _tts_settings(lang):
+    # voice switches with language: each bulbul:v4-flash voice speaks only one language
+    return SarvamTTSService.Settings(language=lang["tts_language"], voice=lang["tts_voice"])
+
+
 class IVRGate(FrameProcessor):
     def __init__(self, context, **kwargs):
         super().__init__(**kwargs)
@@ -69,7 +74,7 @@ class IVRGate(FrameProcessor):
     async def _play_menu(self):
         for digit, lang in LANGUAGES.items():
             await self.push_frame(
-                TTSUpdateSettingsFrame(delta=SarvamTTSService.Settings(language=lang["tts_language"])),
+                TTSUpdateSettingsFrame(delta=_tts_settings(lang)),
                 FrameDirection.DOWNSTREAM,
             )
             await self.push_frame(TTSSpeakFrame(lang["menu_line"]), FrameDirection.DOWNSTREAM)
@@ -120,7 +125,7 @@ class IVRGate(FrameProcessor):
 
         # 2) TTS sits downstream of this gate -> push downstream
         await self.push_frame(
-            TTSUpdateSettingsFrame(delta=SarvamTTSService.Settings(language=lang["tts_language"])),
+            TTSUpdateSettingsFrame(delta=_tts_settings(lang)),
             FrameDirection.DOWNSTREAM,
         )
         # 3) STT sits upstream of this gate -> push upstream so it actually reaches it

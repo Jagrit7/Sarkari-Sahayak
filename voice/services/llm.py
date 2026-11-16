@@ -7,7 +7,7 @@ def configure_llm() -> GroqLLMService:
         settings=GroqLLMService.Settings(
             model="openai/gpt-oss-20b",         # smaller + faster than 120b for real-time voice
             max_completion_tokens=512,          # bounds reasoning + answer so a turn can't run long
-            extra={"reasoning_effort": "low"},  # minimal "thinking" -> seconds, not 80s
+            reasoning_effort="low",             # minimal "thinking" -> seconds, not 80s
         ),
     )
 

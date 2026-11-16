@@ -1,16 +1,39 @@
-# React + Vite
+# Sarkari Sahayak: web chat UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A text chat front end for Sarkari Sahayak, built with React 19, Vite, Tailwind CSS and Motion.
+It shows example prompts, renders replies as markdown, and keeps the conversation history.
 
-Currently, two official plugins are available:
+> **Status:** the UI runs, but no backend currently serves `/chat`, so every message gets the
+> "trouble connecting" reply. See [Web Chat](../README.md#web-chat-in-progress) in the main README.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Run it
 
-## React Compiler
+```bash
+npm install
+npm run dev       # http://localhost:5173
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Other scripts:
 
-## Expanding the Oxlint configuration
+| Command | What it does |
+| --- | --- |
+| `npm run build` | Production build into `dist/` |
+| `npm run preview` | Serves the production build locally |
+| `npm run lint` | Lints with Oxlint |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Backend
+
+Each message is sent as `POST {VITE_API_URL}/chat` with `{ message, history }`, where `history` is
+the earlier turns as `{ role: "user" | "assistant", content }`. The UI expects
+`{ content, citation, cta }` back.
+
+`VITE_API_URL` defaults to `http://localhost:8000`. To change it, create `frontend/.env.local`:
+
+```bash
+VITE_API_URL=http://localhost:8000
+```
+
+## Layout
+
+- `src/App.jsx`: chat state and the `/chat` call
+- `src/components/`: navbar, hero, example chips, chat input and messages, animated background

@@ -12,11 +12,13 @@ import json
 import time
 import math
 import statistics
+from pathlib import Path
 
 from voice.retrieval.retriever import search_schemes, vectorstore
 
-GOLDEN_SET_PATH = r"D:\Projects\Sarkari-Sahayak\voice\eval\retrieval-evals\golden_eval_set.jsonl"
-RESULTS_PATH = r"D:\Projects\Sarkari-Sahayak\voice\eval\retrieval-evals\eval_results.json"
+EVAL_DIR = Path(__file__).resolve().parent
+GOLDEN_SET_PATH = EVAL_DIR / "golden_eval_set.jsonl"
+RESULTS_PATH = EVAL_DIR / "eval_results.json"
 K = 3
 
 # ---------- load golden set ----------

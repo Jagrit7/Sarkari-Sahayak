@@ -13,6 +13,7 @@ LANGUAGES = {
     KeypadEntry.ONE: {
         "name": "Hindi",
         "tts_language": Language.HI,
+        "tts_voice": "aditya_hi_conversational",  # bulbul:v4-flash voices are per-language
         "stt_language": "hi-IN",
         "menu_line": "हिंदी के लिए एक दबाएं।",
         "directive": "Reply only in Hindi, in Devanagari script.",
@@ -20,6 +21,7 @@ LANGUAGES = {
     KeypadEntry.TWO: {
         "name": "English",
         "tts_language": Language.EN,
+        "tts_voice": "dev_en_conversational",
         "stt_language": "en-IN",
         "menu_line": "For English, press two.",
         "directive": "Reply only in English.",

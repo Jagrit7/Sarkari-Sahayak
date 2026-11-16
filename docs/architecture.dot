@@ -1,0 +1,57 @@
+// Source for docs/architecture.svg and docs/architecture.png. Regenerate from the repo root with:
+//   dot -Tsvg docs/architecture.dot -o docs/architecture.svg
+//   dot -Tpng -Gdpi=150 docs/architecture.dot -o docs/architecture.png
+
+digraph architecture {
+    graph [rankdir=TB, fontname="Helvetica", nodesep=0.45, ranksep=0.42, pad=0.2, bgcolor="white"];
+    node  [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=10, penwidth=1, margin="0.18,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="#666666", fontcolor="#444444", arrowsize=0.7];
+
+    // users and transport
+    caller  [fillcolor="#f2f0ea", label=<<b><font point-size="12">Phone caller</font></b><br/>any phone · Hindi or English>];
+    twilio  [fillcolor="#dff1fb", label=<<b><font point-size="12">Twilio</font></b><br/>phone number · turns call into SIP>];
+    livekit [fillcolor="#dff1fb", label=<<b><font point-size="12">LiveKit Cloud</font></b><br/>real-time audio room support-room · SIP bridge>];
+
+    // the Pipecat pipeline (voice/core/pipeline.py), in order
+    input   [fillcolor="#e6e3fb", label=<<b><font point-size="12">transport.input()</font></b><br/>caller audio into the pipeline>];
+    vad     [fillcolor="#e6e3fb", label=<<b><font point-size="12">VAD + Smart Turn</font></b><br/>Silero VAD, 0.5 s stop · detects end of turn>];
+    stt     [fillcolor="#fdeccb", label=<<b><font point-size="12">Sarvam STT (saaras:v4)</font></b><br/>speech to text, Indic ASR>];
+    ivr     [fillcolor="#e6e3fb", label=<<b><font point-size="12">IVRGate</font></b><br/>keypad menu: 1 = Hindi · 2 = English, each line in its own voice<br/>locks STT + TTS language and voice · defaults to Hindi>];
+    ctx     [fillcolor="#e6e3fb", label=<<b><font point-size="12">context aggregator</font></b><br/>assembles the turn · holds history>];
+    llm     [fillcolor="#fdeccb", label=<<b><font point-size="12">Groq LLM — gpt-oss-20b</font></b><br/>low reasoning effort · translates tool queries to English<br/>replies in the caller's chosen language>];
+    tts     [fillcolor="#fdeccb", label=<<b><font point-size="12">Sarvam TTS (bulbul:v4-flash)</font></b><br/>text reply → speech, 1.4x pace<br/>aditya_hi_conversational · dev_en_conversational>];
+    output  [fillcolor="#e6e3fb", label=<<b><font point-size="12">transport.output()</font></b><br/>bot audio back to caller>];
+
+    // tools and retrieval (voice/core/tool.py, voice/retrieval/)
+    tools    [fillcolor="#e6e3fb", label=<<b><font point-size="12">6 scheme tools</font></b><br/>search_schemes · check_eligibility · check_documents<br/>check_benefits · check_application_process · check_scheme_details>];
+    embed    [fillcolor="#e2f3d9", label=<<b><font point-size="12">Cloudflare Workers AI</font></b><br/>bge-large-en-v1.5 · embed question → dense vector>];
+    weaviate [fillcolor="#e2f3d9", label=<<b><font point-size="12">Weaviate (self-hosted, Docker)</font></b><br/>hybrid dense + BM25 search, alpha 0.6>];
+    rerank   [fillcolor="#e2f3d9", label=<<b><font point-size="12">FlashRank reranker</font></b><br/>ms-marco-MiniLM-L-12-v2 · reranks full candidate pool>];
+    chunks   [fillcolor="#e2f3d9", label=<<b><font point-size="12">16,795 section-chunks</font></b><br/>3,356 schemes · collection SarkariSchemesVoice>];
+
+    caller -> twilio -> livekit -> input -> vad -> stt -> ivr -> ctx -> llm;
+    llm -> tts [label=" reply text"];
+    tts -> output;
+    output -> livekit [label=" reply audio", color="#b5442f", fontcolor="#b5442f"];
+
+    llm -> tools [label=" tool call\n (English query)"];
+    tools -> embed [label=" query"];
+    embed -> weaviate [label=" dense vector"];
+    weaviate -> rerank [label=" candidate chunks"];
+    weaviate -> chunks [label=" stores", style=dashed, arrowhead=none];
+    rerank -> tools [label=" top chunks", color="#2f7d32", fontcolor="#2f7d32"];
+    tools -> llm [label=" tool result", color="#2f7d32", fontcolor="#2f7d32"];
+
+    { rank=same; tools; tts; }
+
+    // defined last so it lays out to the right of the pipeline
+    subgraph cluster_legend {
+        label="Legend"; fontsize=11; color="#b3b3b3"; style=rounded;
+        l1 [label="Users",                 fillcolor="#f2f0ea", fontsize=12];
+        l2 [label="Transport / hosting",   fillcolor="#dff1fb", fontsize=12];
+        l3 [label="Your code",             fillcolor="#e6e3fb", fontsize=12];
+        l4 [label="AI model services",     fillcolor="#fdeccb", fontsize=12];
+        l5 [label="Knowledge / retrieval", fillcolor="#e2f3d9", fontsize=12];
+        l1 -> l2 -> l3 -> l4 -> l5 [style=invis];
+    }
+}

@@ -3,7 +3,7 @@ import time
 
 import requests
 
-from voice.retrieval.loader import load_files
+from voice.retrieval.loader import DATA_DIR, load_files
 from voice.retrieval.vectorstore import get_vectorstore
 
 # add_documents() embeds THEN upserts — for the whole list at once, that means
@@ -12,7 +12,7 @@ from voice.retrieval.vectorstore import get_vectorstore
 CHUNK_SIZE = 200
 MAX_RETRIES = 5
 INITIAL_BACKOFF_SECS = 30
-PROGRESS_FILE = "/app/data/ingest_progress.txt"  # must be on a mounted volume to survive `--rm`
+PROGRESS_FILE = DATA_DIR / "ingest_progress.txt"  # in a container, DATA_DIR must be a mounted volume to survive `--rm`
 
 
 def _load_progress():

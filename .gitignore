@@ -31,13 +31,19 @@ Thumbs.db
 *.log
 
 # ───────────── Project-specific ─────────────
-data/ingest_progress.txt     # resumable-ingest state, not source
-*.csv                        # raw datasets — agent reads from Qdrant at runtime, not these
-data/*.jsonl                 # intermediate ingest file
-*.mpeg                       # demo video — host on Drive/YouTube, don't bloat the repo
+# gitignore has no inline comments, so each comment sits on its own line.
+# The CSVs and data/ingest_progress.txt are committed on purpose: ingest needs them.
+
+# intermediate ingest file
+data/*.jsonl
+
+# demo video — host on Drive/YouTube, don't bloat the repo
 *.mp4
 
-# Big dataset JSON (~31 MB) — excluded for a lean repo. The agent queries Qdrant at
+# stray pytest temp folders
+pytest-cache-files-*/
+
+# Big dataset JSON (~31 MB) — excluded for a lean repo. The agent queries Weaviate at
 # runtime, so this isn't needed to RUN the project; you'd only need it to re-ingest.
 # Delete this one line if you'd rather ship a complete, re-ingestable repo.
 data/*.json
